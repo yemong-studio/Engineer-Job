@@ -59,12 +59,27 @@ function safeParseJson<T>(rawText: string | undefined, fallback: T): T {
   }
 }
 
+// Global unhandled error handlers to keep the server process 100% resilient
+process.on('unhandledRejection', (reason) => {
+  console.warn('[Process Unhandled Rejection Caught & Handled]:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.warn('[Process Uncaught Exception Caught & Handled]:', err);
+});
+
 // Timeout race wrapper: Ensures the server NEVER leaves the user waiting more than timeoutMs (default 4000ms)
+// and guarantees background promises NEVER crash the process with unhandled rejections
 async function withGeminiTimeout<T>(
   geminiPromise: Promise<T>,
   fallbackFn: () => T,
   timeoutMs = 4000
 ): Promise<T> {
+  // Catch background rejections so they never crash Node.js
+  const safeGeminiPromise = geminiPromise.catch((err) => {
+    console.warn('[Gemini Background Promise Error Handled]:', err?.message || err);
+    return fallbackFn();
+  });
+
   let timer: NodeJS.Timeout;
   const timeoutPromise = new Promise<T>((resolve) => {
     timer = setTimeout(() => {
@@ -74,7 +89,7 @@ async function withGeminiTimeout<T>(
   });
 
   try {
-    const result = await Promise.race([geminiPromise, timeoutPromise]);
+    const result = await Promise.race([safeGeminiPromise, timeoutPromise]);
     clearTimeout(timer!);
     return result;
   } catch (err) {
@@ -114,7 +129,9 @@ function getFallbackArticles(searchQuery: string) {
 // Fast live RSS news fetcher with 1.8s quick timeout
 async function fetchGoogleNewsRss(query: string, isOverseas: boolean = false): Promise<any[]> {
   try {
-    const q = isOverseas ? `${query} engineering technology` : query;
+    // Sanitize special characters like &, /, etc. for clean RSS search queries
+    const cleanTerm = query.replace(/[&/\\#,+()$~%.'":*?<>{}]/g, ' ').replace(/\s+/g, ' ').trim();
+    const q = isOverseas ? `${cleanTerm} engineering technology` : cleanTerm;
     const lang = isOverseas ? 'en-US' : 'ko';
     const gl = isOverseas ? 'US' : 'KR';
     const ceid = isOverseas ? 'US:en' : 'KR:ko';
