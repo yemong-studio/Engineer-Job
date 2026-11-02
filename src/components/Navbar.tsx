@@ -9,6 +9,7 @@ interface NavbarProps {
   onSelectTab: (tab: NavTab) => void;
   savedJobsCount: number;
   userName?: string;
+  onSwitchUser?: (key: string) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -16,7 +17,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectTab,
   savedJobsCount,
   userName = '김공학',
+  onSwitchUser,
 }) => {
+  const [showUserMenu, setShowUserMenu] = React.useState(false);
+
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -103,14 +107,20 @@ export const Navbar: React.FC<NavbarProps> = ({
           </nav>
 
           {/* Zone 3: Primary action & User Profile */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="relative flex items-center gap-2 shrink-0">
+            {/* Guest / login-free badge */}
+            <span className="hidden sm:inline-block text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full">
+              로그인 없이 이용 가능
+            </span>
+
             <button
-              onClick={() => onSelectTab('mypage')}
+              onClick={() => setShowUserMenu(!showUserMenu)}
               className={`flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full border transition-all cursor-pointer ${
                 activeTab === 'mypage'
                   ? 'border-slate-900 bg-slate-900 text-white'
                   : 'border-slate-200 bg-white hover:border-slate-300 text-slate-800'
               }`}
+              title="프로필 및 사용자 모드 변경"
             >
               <img
                 src={AVATAR_USER_IMAGE}
@@ -127,6 +137,85 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
               )}
             </button>
+
+            {/* User Profile / Guest Mode Popover */}
+            {showUserMenu && (
+              <div className="absolute right-0 top-12 mt-1 w-64 bg-white rounded-xl shadow-xl border border-slate-200 p-3 z-50 text-xs">
+                <div className="pb-2 border-b border-slate-100 mb-2">
+                  <div className="font-bold text-slate-900 text-sm">{userName}</div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">
+                    로그인 없이 모든 검색·분석 기능을 자유롭게 이용할 수 있습니다.
+                  </div>
+                </div>
+
+                {onSwitchUser && (
+                  <div className="space-y-1 mb-2">
+                    <div className="text-[11px] font-medium text-slate-400 mb-1">사용자 모드 전환:</div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSwitchUser('guest');
+                        setShowUserMenu(false);
+                      }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-lg transition-colors flex items-center justify-between cursor-pointer ${
+                        userName === '게스트' ? 'bg-slate-100 font-bold text-slate-900' : 'hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <span>👤 게스트 모드 (비로그인)</span>
+                      {userName === '게스트' && <span className="text-emerald-600 font-bold text-[10px]">선택됨</span>}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSwitchUser('kim');
+                        setShowUserMenu(false);
+                      }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-lg transition-colors flex items-center justify-between cursor-pointer ${
+                        userName === '김공학' ? 'bg-slate-100 font-bold text-slate-900' : 'hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <span>⚙️ 김공학 (기계공학 프리셋)</span>
+                      {userName === '김공학' && <span className="text-emerald-600 font-bold text-[10px]">선택됨</span>}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSwitchUser('park');
+                        setShowUserMenu(false);
+                      }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-lg transition-colors flex items-center justify-between cursor-pointer ${
+                        userName === '박전자' ? 'bg-slate-100 font-bold text-slate-900' : 'hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <span>⚡ 박전자 (전자공학 프리셋)</span>
+                      {userName === '박전자' && <span className="text-emerald-600 font-bold text-[10px]">선택됨</span>}
+                    </button>
+                  </div>
+                )}
+
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelectTab('mypage');
+                      setShowUserMenu(false);
+                    }}
+                    className="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer"
+                  >
+                    마이페이지 이동
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowUserMenu(false)}
+                    className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    닫기
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

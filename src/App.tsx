@@ -40,6 +40,31 @@ const PARK_PROFILE: UserProfile = {
   targetCompanies: ['삼성전자 DS', 'SK하이닉스', 'LG이노텍', 'ASML 코리아'],
 };
 
+// Guest profile (unauthenticated / login-free mode)
+const GUEST_PROFILE: UserProfile = {
+  id: 'usr_guest',
+  name: '게스트',
+  email: 'guest@engineerjob.kr',
+  major: '기계공학',
+  degree: '학사 (졸업예정)',
+  gpa: '3.80 / 4.5',
+  techSkills: ['공학 기초', '데이터 분석', 'CAD/도면 해석', 'Python'],
+  engineeringTools: ['3D CAD', 'MATLAB', 'Excel', '기초 시뮬레이션'],
+  projectExperience: [
+    {
+      title: '공학 전공 캡스톤 디자인 및 종합 설계 프로젝트',
+      duration: '2025.03 - 2025.11',
+      role: '설계 및 데이터 분석 총괄',
+      techStack: 'CAD, Python, 수치해석',
+      description: '시스템 효율 최적화 및 정량적 성능 지표 개선 연구',
+      metricOutcome: '초기 대비 효율 15% 개선 및 신뢰성 검증 완료',
+    },
+  ],
+  preferredRoles: ['엔지니어링 R&D', '공정기술 / 생산기술', '품질관리'],
+  preferredRegions: ['전국'],
+  targetCompanies: ['현대자동차', '삼성전자', '두산에너빌리티', 'LG에너지솔루션', '한화에어로스페이스'],
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('jobs');
   const [searchKeyword, setSearchKeyword] = useState<string>('');
@@ -115,7 +140,11 @@ export default function App() {
   };
 
   const handleSwitchUser = (key: string) => {
-    if (key === 'park') {
+    if (key === 'guest') {
+      setUserProfile(GUEST_PROFILE);
+      setSavedJobIds(new Set(['job_001']));
+      setSavedJobs([]);
+    } else if (key === 'park') {
       setUserProfile(PARK_PROFILE);
       setSavedJobIds(new Set(['job_003']));
       setSavedJobs([]);
@@ -134,6 +163,7 @@ export default function App() {
         onSelectTab={setActiveTab}
         savedJobsCount={savedJobIds.size}
         userName={userProfile.name}
+        onSwitchUser={handleSwitchUser}
       />
 
       {/* 2. Hero Section on Landing/Jobs view */}

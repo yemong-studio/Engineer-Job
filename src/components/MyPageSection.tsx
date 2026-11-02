@@ -95,26 +95,44 @@ export const MyPageSection: React.FC<MyPageSectionProps> = ({
 
         {/* Quick Multi-User Test Switcher */}
         {onSwitchUser && (
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-500">사용자 계정 전환:</span>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-slate-500">계정 모드:</span>
             <button
-              onClick={() => onSwitchUser('kim')}
-              className={`px-3 py-1.5 rounded-lg border font-medium cursor-pointer ${
-                profile.name === '김공학' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700'
+              onClick={() => onSwitchUser('guest')}
+              className={`px-3 py-1.5 rounded-lg border font-medium cursor-pointer transition-all ${
+                profile.name === '게스트' ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-50'
               }`}
             >
-              김공학 (기계)
+              👤 게스트 (비로그인)
+            </button>
+            <button
+              onClick={() => onSwitchUser('kim')}
+              className={`px-3 py-1.5 rounded-lg border font-medium cursor-pointer transition-all ${
+                profile.name === '김공학' ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              ⚙️ 김공학 (기계)
             </button>
             <button
               onClick={() => onSwitchUser('park')}
-              className={`px-3 py-1.5 rounded-lg border font-medium cursor-pointer ${
-                profile.name === '박전자' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700'
+              className={`px-3 py-1.5 rounded-lg border font-medium cursor-pointer transition-all ${
+                profile.name === '박전자' ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-50'
               }`}
             >
-              박전자 (전기/전자)
+              ⚡ 박전자 (전기/전자)
             </button>
           </div>
         )}
+      </div>
+
+      {/* Guest & Default Profile Reassurance Banner */}
+      <div className="p-3.5 bg-blue-50/70 border border-blue-200/80 rounded-xl text-xs text-blue-900 mb-6 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
+          <span>
+            <strong>로그인 및 프로필 수정 없이도 모든 기능 이용 가능:</strong> 채용정보 통합 검색, Industry HINT 기사 요약, AI 기업 심층 분석을 프로필 변경 없이 즉시 이용하실 수 있습니다.
+          </span>
+        </div>
       </div>
 
       {/* Sub Tabs Navigation */}

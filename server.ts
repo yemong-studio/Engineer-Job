@@ -6,6 +6,8 @@ import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
 import dotenv from 'dotenv';
 import { INITIAL_JOB_POSTINGS } from './src/lib/constants';
 import { JobPosting, IndustryNewsItem } from './src/types';
+import { generateDomainCompanyAnalysis } from './src/lib/domainAnalysis';
+import { generateMultiPortalPostings } from './src/lib/multiPortalJobs';
 
 dotenv.config();
 
@@ -195,16 +197,18 @@ async function startServer() {
 
   app.use(express.json({ limit: '10mb' }));
 
-  // 1. Job search endpoint
+  // 1. Multi-portal Integrated Job search endpoint
   app.post('/api/jobs/search', (req: Request, res: Response) => {
     try {
-      const { keyword, major, experience, region, education, userId } = req.body || {};
+      const { keyword, major, experience, region, education, portal, userId } = req.body || {};
 
-      let results = [...INITIAL_JOB_POSTINGS];
+      const hasKeyword = keyword && typeof keyword === 'string' && keyword.trim();
+      const q = hasKeyword ? keyword.trim().toLowerCase() : '';
 
-      if (keyword && typeof keyword === 'string' && keyword.trim()) {
-        const q = keyword.trim().toLowerCase();
-        results = results.filter(
+      // Base sample listings
+      let baseListings = [...INITIAL_JOB_POSTINGS];
+      if (hasKeyword) {
+        baseListings = baseListings.filter(
           (j) =>
             j.title.toLowerCase().includes(q) ||
             j.company.toLowerCase().includes(q) ||
@@ -213,8 +217,30 @@ async function startServer() {
         );
       }
 
+      // Generate multi-portal integrated postings across Saramin, Wanted, JobKorea, LinkedIn, Incruit, Direct
+      const dynamicPortalPostings = generateMultiPortalPostings({
+        keyword: keyword || '',
+        major: major || '전체',
+        experience: experience || '전체',
+        region: region || '전국',
+        education: education || '전체',
+        portal: portal || 'all',
+      });
+
+      // Combine base listings + live multi-portal postings
+      let combined = [...baseListings, ...dynamicPortalPostings];
+
+      // De-duplicate by company + title
+      const seen = new Set<string>();
+      let results = combined.filter((job) => {
+        const key = `${job.company}_${job.title}`.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
       if (major && major !== '전체') {
-        results = results.filter((j) => j.major.includes(major));
+        results = results.filter((j) => (j.major as any[]).includes(major));
       }
 
       if (experience && experience !== '전체') {
@@ -229,6 +255,10 @@ async function startServer() {
         results = results.filter((j) => j.education.includes(education));
       }
 
+      if (portal && portal !== 'all') {
+        results = results.filter((j) => j.source.includes(portal) || j.category.includes(portal));
+      }
+
       const userSavedSet = userId ? database.savedJobs.get(userId) || new Set<string>() : new Set<string>();
       const enrichedResults = results.map((j) => ({
         ...j,
@@ -239,6 +269,7 @@ async function startServer() {
         success: true,
         total: enrichedResults.length,
         jobs: enrichedResults,
+        searchedPortals: ['사람인', '원티드', '잡코리아', '링크드인', '인크루트', '기업 공식채용'],
       });
     } catch (error: any) {
       console.error('Error in /api/jobs/search:', error);
@@ -471,58 +502,25 @@ ${applicantProfile ? JSON.stringify(applicantProfile) : '공학 전공 학사 �
         },
       }).then((res) => safeParseJson<any>(res.text, {}));
 
+      // Generate role-specific & company-specific domain baseline
+      const domainBaseline = generateDomainCompanyAnalysis(companyName, role, applicantProfile);
+
       // 4-second timeout guarantee
       const parsed = await withGeminiTimeout(geminiCall, () => ({}), 4000);
 
-      const finalStep1 = parsed.step1 || {
-        majorCompetitors: ['동종 산업 글로벌 선도기업', '국내 유력 티어1 부품사', '신흥 테크 유니콘'],
-        businessDomain: `${companyName}의 주력 미래 모빌리티 및 첨단 부품 제조`,
-        keyProductsAndTech: ['차세대 플랫폼 아키텍처', '선행 메카트로닉스 시스템', '고효율 전동화 구동계'],
-        techStrength: '원천 설계 기술과 수직 계열화된 글로벌 양산 제조 경쟁력',
-        marketCompetitiveness: '국내 1위 및 글로벌 탑티어 시장 점유율 유지',
-        differentiators: [
-          '자체 개발 핵심 제어 알고리즘 및 소프트웨어 내재화',
-          '글로벌 R&D 네트워크 기반 초정밀 품질 검증 체계',
-          '모듈화 플랫폼을 통한 원가 절감 및 생산 유연성 극대화',
-        ],
-      };
-
-      const finalStep2 = parsed.step2 || {
-        industryShifts: ['SDV(소프트웨어 중심 자동차) 전환 가속화', '탄소중립 및 친환경 전동화 규제 강화'],
-        technicalChallenges: ['복합 다물리계 동특성 제어 및 초경량 소재 적용', '전자파 적합성(EMC) 및 열관리 최적화'],
-        productivityAndQualityHurdles: ['신규 파일럿 라인의 초기 양산 수율 안정화', '자동화 조립 공정 내 불량률 제로화'],
-        processAndCostIssues: ['희소 원자재 공급망 다변화 및 조달 단가 최적화', '단품 가공 공정 단축을 위한 일체형 성형 기술 도입'],
-        futureGrowthDirection: '스마트 팩토리 기반 차세대 지능형 플랫폼 구축 및 미래 먹거리 원천 기술 선점',
-      };
-
-      const finalStep3 = parsed.step3 || {
-        targetJobRole: role,
-        keyResponsibilities: [
-          '선행 사양 기구 구조 및 메카트로닉스 부품 3D CAD 정밀 모델링',
-          '유한요소해석(FEA) 및 다물체 동역학 시뮬레이션을 통한 강도/진동 검증',
-          '실차 장착 시험 및 시험실 벤치 테스트 데이터 피드백 반영',
-        ],
-        requiredCompetencies: ['CATIA V5 / SolidWorks', 'ANSYS Mechanical', '동역학 해석', '구조역학 기초'],
-        applicantMatchPoints: [
-          '학부 캡스톤 프로젝트에서의 구조 경량화 및 토폴로지 최적화 수행 경험 연결',
-          '시뮬레이션 해석과 실물 계측 데이터 간 오차 튜닝 경험 강조',
-        ],
-        coverLetterKeyPhrases: ['위상최적화', '구조 안전계수', 'NVH 저감', '실차 양산 적합성'],
-        interviewPrepQuestions: [
-          `본인이 수행한 프로젝트에서 가장 해결하기 어려웠던 기계 구조적 문제와 공학적 해결책은 무엇이었습니까?`,
-          `${companyName}의 최신 제품군에서 해당 직무가 기여할 수 있는 가장 시급한 기술적 과제는 무엇이라고 생각합니까?`,
-        ],
-      };
+      const finalStep1 = parsed.step1 || domainBaseline.step1;
+      const finalStep2 = parsed.step2 || domainBaseline.step2;
+      const finalStep3 = parsed.step3 || domainBaseline.step3;
 
       const result = {
         companyName,
         targetJobRole: role,
         analysisDate: new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }),
-        basisSource: '공식 사업보고서, 최신 IR 자료 및 산업 공개 기술 논문 종합 분석',
+        basisSource: domainBaseline.basisSource,
         step1: finalStep1,
         step2: finalStep2,
         step3: finalStep3,
-        cautionNotice: '본 분석은 공개된 산업 동향과 기술 보고서를 바탕으로 Gemini AI가 정밀 분석한 엔지니어링 자료이며, 실제 채용 시점의 세부 직무 요건은 각 기업 채용 공고를 최종 확인하시기 바랍니다.',
+        cautionNotice: domainBaseline.cautionNotice,
       };
 
       return res.json({ success: true, data: result });

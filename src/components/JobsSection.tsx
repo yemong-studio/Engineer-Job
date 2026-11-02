@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Bookmark, ExternalLink, MapPin, GraduationCap, Briefcase, X, Sparkles } from 'lucide-react';
+import { Search, Bookmark, ExternalLink, MapPin, GraduationCap, Briefcase, X, Sparkles, Filter, Globe } from 'lucide-react';
 import { JobPosting } from '../types';
 import { ENGINEERING_MAJORS, REGIONS, EXPERIENCE_LEVELS, INITIAL_JOB_POSTINGS } from '../lib/constants';
+import { JOB_PORTALS, generateMultiPortalPostings } from '../lib/multiPortalJobs';
 
 interface JobsSectionProps {
   onToggleSaveJob: (job: JobPosting) => void;
@@ -21,8 +22,12 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
   const [selectedExperience, setSelectedExperience] = useState<string>('전체');
   const [selectedRegion, setSelectedRegion] = useState<string>('전국');
   const [selectedEducation, setSelectedEducation] = useState<string>('전체');
+  const [selectedPortal, setSelectedPortal] = useState<string>('all');
 
-  const [jobs, setJobs] = useState<JobPosting[]>(() => INITIAL_JOB_POSTINGS);
+  const [jobs, setJobs] = useState<JobPosting[]>(() => [
+    ...INITIAL_JOB_POSTINGS,
+    ...generateMultiPortalPostings({ keyword: '' }),
+  ]);
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedJob, setSelectedJob] = useState<JobPosting | null>(null);
 
@@ -32,23 +37,25 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
     }
   }, [initialKeyword]);
 
-  const fetchJobs = async () => {
+  const fetchJobs = async (overrideKeyword?: string) => {
+    const activeKeyword = overrideKeyword !== undefined ? overrideKeyword : keyword;
     setLoading(true);
     try {
       const res = await fetch('/api/jobs/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          keyword,
+          keyword: activeKeyword,
           major: selectedMajor,
           experience: selectedExperience,
           region: selectedRegion,
           education: selectedEducation,
-          userId: 'usr_eng_001',
+          portal: selectedPortal,
+          userId: 'guest_user',
         }),
       });
       const data = await res.json();
-      if (data.success && Array.isArray(data.jobs)) {
+      if (data.success && Array.isArray(data.jobs) && data.jobs.length > 0) {
         setJobs(data.jobs);
         setLoading(false);
         return;
@@ -57,11 +64,20 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
       console.warn('Jobs search endpoint error, using client dataset filter:', err);
     }
 
-    // High fidelity client fallback filter
-    let filtered = [...INITIAL_JOB_POSTINGS];
-    if (keyword && keyword.trim()) {
-      const q = keyword.trim().toLowerCase();
-      filtered = filtered.filter(
+    // High fidelity multi-portal client fallback
+    const dynamicListings = generateMultiPortalPostings({
+      keyword: activeKeyword,
+      major: selectedMajor,
+      experience: selectedExperience,
+      region: selectedRegion,
+      education: selectedEducation,
+      portal: selectedPortal,
+    });
+
+    let baseFiltered = [...INITIAL_JOB_POSTINGS];
+    if (activeKeyword && activeKeyword.trim()) {
+      const q = activeKeyword.trim().toLowerCase();
+      baseFiltered = baseFiltered.filter(
         (j) =>
           j.title.toLowerCase().includes(q) ||
           j.company.toLowerCase().includes(q) ||
@@ -69,6 +85,16 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
           j.description.toLowerCase().includes(q)
       );
     }
+
+    let combined = [...baseFiltered, ...dynamicListings];
+    const seen = new Set<string>();
+    let filtered = combined.filter((job) => {
+      const key = `${job.company}_${job.title}`.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
     if (selectedMajor !== '전체') {
       filtered = filtered.filter((j) => (j.major as any[]).includes(selectedMajor));
     }
@@ -81,17 +107,33 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
     if (selectedEducation !== '전체') {
       filtered = filtered.filter((j) => j.education.includes(selectedEducation));
     }
+    if (selectedPortal !== 'all') {
+      filtered = filtered.filter((j) => j.source.includes(selectedPortal) || j.category.includes(selectedPortal));
+    }
+
     setJobs(filtered);
     setLoading(false);
   };
 
   useEffect(() => {
     fetchJobs();
-  }, [selectedMajor, selectedExperience, selectedRegion, selectedEducation]);
+  }, [selectedMajor, selectedExperience, selectedRegion, selectedEducation, selectedPortal]);
+
+  useEffect(() => {
+    if (initialKeyword) {
+      setKeyword(initialKeyword);
+      fetchJobs(initialKeyword);
+    }
+  }, [initialKeyword]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchJobs();
+    fetchJobs(keyword);
+  };
+
+  const handleQuickKeywordClick = (k: string) => {
+    setKeyword(k);
+    fetchJobs(k);
   };
 
   const handleResetFilters = () => {
@@ -100,6 +142,8 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
     setSelectedExperience('전체');
     setSelectedRegion('전국');
     setSelectedEducation('전체');
+    setSelectedPortal('all');
+    fetchJobs('');
   };
 
   return (
@@ -126,8 +170,33 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
         </div>
       </div>
 
-      {/* Filter and Search Bar Container */}
+      {/* Multi-portal Integrated Search Banner & Filter Bar */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm mb-8 space-y-4">
+        {/* Portal selection tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar border-b border-slate-100 pb-3">
+          <span className="text-slate-400 font-medium shrink-0 flex items-center gap-1 mr-1">
+            <Globe className="w-3.5 h-3.5 text-blue-600" />
+            포털 연동:
+          </span>
+          {JOB_PORTALS.map((portal) => {
+            const isActive = selectedPortal === (portal.id === 'all' ? 'all' : portal.name);
+            return (
+              <button
+                key={portal.id}
+                type="button"
+                onClick={() => setSelectedPortal(portal.id === 'all' ? 'all' : portal.name)}
+                className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {portal.name}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Search Input Row */}
         <form onSubmit={handleSearchSubmit} className="flex gap-2">
           <div className="relative flex-1">
@@ -136,20 +205,44 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
               type="text"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              placeholder="기업명(현대자동차, 삼성전자, 한화), 기술 키워드(FEA, ROS, CATIA, HBM), 직무명"
+              placeholder="기업명(현대, 삼성, 두산, LG, 한화), 공학 기술(원자력, 배터리, FEA, CATIA, HBM), 직무명"
               className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-slate-900"
             />
           </div>
           <button
             type="submit"
-            className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-lg transition-colors shrink-0 cursor-pointer"
+            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition-colors shrink-0 cursor-pointer shadow-xs"
           >
-            검색
+            통합 검색
           </button>
         </form>
 
+        {/* Quick Engineering Search Chips */}
+        <div className="flex flex-wrap items-center gap-1.5 text-xs pt-1">
+          <span className="text-slate-400 font-medium mr-1">인기 공학 테마:</span>
+          {[
+            { label: '원자력·플랜트', query: '원자력' },
+            { label: '2차전지 배터리', query: '배터리' },
+            { label: '차세대 반도체 HBM', query: '반도체' },
+            { label: '임베디드 제어 SW', query: '임베디드' },
+            { label: '공정기술 & 품질', query: '공정기술' },
+            { label: '로보틱스 & 메카', query: '로봇' },
+            { label: '화학공학 & 신소재', query: '화학' },
+            { label: '항공우주 & 방산', query: '항공우주' },
+          ].map((theme) => (
+            <button
+              key={theme.label}
+              type="button"
+              onClick={() => handleQuickKeywordClick(theme.query)}
+              className="px-2.5 py-1 rounded bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 transition-colors cursor-pointer border border-slate-200/60"
+            >
+              {theme.label}
+            </button>
+          ))}
+        </div>
+
         {/* Structured Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-slate-100 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-slate-100 text-xs">
           {/* Major Select */}
           <div>
             <label className="block text-slate-600 font-medium mb-1">공학 전공</label>
@@ -215,10 +308,14 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
         </div>
 
         {/* Filter tags & Reset */}
-        {(keyword || selectedMajor !== '전체' || selectedExperience !== '전체' || selectedRegion !== '전국') && (
+        {(keyword || selectedMajor !== '전체' || selectedExperience !== '전체' || selectedRegion !== '전국' || selectedPortal !== 'all') && (
           <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
             <div className="flex items-center gap-2">
               <span>적용 필터:</span>
+              {selectedPortal !== 'all' && (
+                <span className="px-2 py-0.5 rounded bg-slate-900 text-white font-medium">{selectedPortal}</span>
+              )}
+              {keyword && <span className="font-semibold text-blue-600">"{keyword}"</span>}
               {selectedMajor !== '전체' && <span className="font-medium text-slate-900">{selectedMajor}</span>}
               {selectedExperience !== '전체' && (
                 <>
@@ -274,20 +371,38 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {jobs.map((job) => {
             const isSaved = savedJobIds.has(job.id);
+            const getPortalBadge = (src: string) => {
+              if (src.includes('사람인')) {
+                return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">사람인</span>;
+              }
+              if (src.includes('원티드')) {
+                return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">원티드</span>;
+              }
+              if (src.includes('잡코리아')) {
+                return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-50 text-cyan-700 border border-cyan-200">잡코리아</span>;
+              }
+              if (src.includes('링크드인')) {
+                return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-700 text-white border border-emerald-800">LinkedIn</span>;
+              }
+              if (src.includes('인크루트')) {
+                return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">인크루트</span>;
+              }
+              return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-300">기업공식</span>;
+            };
+
             return (
               <div
                 key={job.id}
                 className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-all p-5 flex flex-col justify-between group shadow-xs"
               >
                 <div>
-                  {/* Company & Origin Source row without pills */}
+                  {/* Company & Origin Source row with Portal badge */}
                   <div className="flex items-center justify-between gap-2 text-xs text-slate-500 mb-2">
                     <div className="flex items-center gap-2">
+                      {getPortalBadge(job.source)}
                       <span className="font-semibold text-slate-900">{job.company}</span>
                       <span aria-hidden="true">·</span>
-                      <span>{job.category}</span>
-                      <span aria-hidden="true">·</span>
-                      <span className="tabular-nums">{job.source}</span>
+                      <span className="text-slate-600">{job.category}</span>
                     </div>
 
                     {/* Bookmark Button */}

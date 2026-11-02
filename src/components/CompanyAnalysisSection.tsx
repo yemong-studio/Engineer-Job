@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Building2, Sparkles, CheckCircle2, Bookmark, Copy, Check, ShieldCheck } from 'lucide-react';
 import { CompanyAnalysisResult, UserProfile } from '../types';
 import { FEATURE_ANALYSIS_IMAGE } from '../lib/constants';
+import { generateDomainCompanyAnalysis } from '../lib/domainAnalysis';
 
 interface CompanyAnalysisSectionProps {
   initialCompanyName?: string;
@@ -9,71 +10,6 @@ interface CompanyAnalysisSectionProps {
   userProfile?: UserProfile;
   onSaveAnalysis?: (analysis: CompanyAnalysisResult) => void;
   onGoToResumePolish?: (company: string, role: string) => void;
-}
-
-function getClientFallbackCompanyAnalysis(
-  company: string,
-  role: string,
-  userProfile?: UserProfile
-): CompanyAnalysisResult {
-  return {
-    companyName: company,
-    targetJobRole: role,
-    analysisDate: new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }),
-    basisSource: '공식 사업보고서, 최신 IR 기술 리포트 및 산업 공개 기술 논문 종합 분석',
-    step1: {
-      majorCompetitors: ['글로벌 선도 동종 제조사', '국내 티어1 전장·부품사', '첨단 소재/SW 유니콘'],
-      businessDomain: `${company}의 핵심 미래 모빌리티 및 첨단 산업 엔지니어링 시스템`,
-      keyProductsAndTech: ['차세대 플랫폼 아키텍처', '선행 메카트로닉스 시스템', '고효율 전동화 구동계'],
-      techStrength: '원천 설계 기술력과 수직 계열화된 글로벌 양산 제조 공정 경쟁력',
-      marketCompetitiveness: '국내 선두 및 글로벌 탑티어 시장 점유율 지속 유지',
-      differentiators: [
-        '자체 개발 핵심 제어 알고리즘 및 소프트웨어 기술 내재화',
-        '글로벌 R&D 거점 기반 초정밀 품질 검증 및 신뢰성 평가 체계',
-        '모듈화 플랫폼 도입을 통한 개발 기간 단축 및 원가 경쟁력 확보',
-      ],
-    },
-    step2: {
-      industryShifts: [
-        '소프트웨어 중심(SDV/스마트화) 아키텍처 전환 가속화',
-        '글로벌 탄소중립 규제 및 공급망 친환경 전환 요구 강화',
-      ],
-      technicalChallenges: [
-        '복합 다물리계 동특성 제어 및 초경량 신소재 적용 공정 개발',
-        '전자파 적합성(EMC) 노이즈 저감 및 시스템 열관리 최적화',
-      ],
-      productivityAndQualityHurdles: [
-        '신규 파일럿 라인의 초기 양산 수율 안정화 및 사이클 타임 단축',
-        '자동화 조립 라인 내 비전 센서 기반 실시간 결함률 제로화',
-      ],
-      processAndCostIssues: [
-        '핵심 희소 원자재 공급망 다변화 및 조달 단가 최적화',
-        '가공 공정 단순화를 위한 일체형 메가캐스팅/성형 공법 도입',
-      ],
-      futureGrowthDirection: '스마트 팩토리 기반 차세대 지능형 플랫폼 구축 및 미래 먹거리 원천 기술 선점',
-    },
-    step3: {
-      targetJobRole: role,
-      keyResponsibilities: [
-        '선행 사양 기구 구조 및 메카트로닉스 부품 3D CAD 정밀 모델링',
-        '유한요소해석(FEA) 및 다물체 동역학 시뮬레이션을 통한 구조 강도/진동 검증',
-        '실물 장착 시험 및 시험실 벤치 테스트 데이터 피드백 반영',
-      ],
-      requiredCompetencies: ['CATIA V5 / SolidWorks', 'ANSYS Mechanical', '동역학 해석', '구조역학 기초'],
-      applicantMatchPoints: [
-        userProfile?.projectExperience?.[0]?.title
-          ? `'${userProfile.projectExperience[0].title}' 수행 경험과 ${userProfile.projectExperience[0].metricOutcome} 정량 성과를 직무 필요 역량과 직접 연결`
-          : '학부 캡스톤 프로젝트에서의 구조 경량화 및 시뮬레이션 해석 경험 연결',
-        '해석 시뮬레이션과 실물 시험 계측치 간 오차 보정 경험 강조',
-      ],
-      coverLetterKeyPhrases: ['위상최적화', '구조 안전계수', 'NVH 저감', '양산 신뢰성 확보'],
-      interviewPrepQuestions: [
-        `본인이 수행한 프로젝트에서 가장 해결하기 어려웠던 구조/해석적 문제와 공학적 해결책은 무엇이었습니까?`,
-        `${company}의 최신 기술 로드맵에서 해당 지원 직무(${role})가 해결해야 할 가장 시급한 과제는 무엇이라고 생각합니까?`,
-      ],
-    },
-    cautionNotice: '본 분석은 공개된 산업 동향과 기술 보고서를 바탕으로 정밀 분석한 엔지니어링 자료이며, 세부 요건은 채용 공고를 최종 확인하시기 바랍니다.',
-  };
 }
 
 export const CompanyAnalysisSection: React.FC<CompanyAnalysisSectionProps> = ({
@@ -88,11 +24,18 @@ export const CompanyAnalysisSection: React.FC<CompanyAnalysisSectionProps> = ({
   const [loading, setLoading] = useState(false);
   const [loadingStage, setLoadingStage] = useState<'step1' | 'step2' | 'step3'>('step1');
   const [result, setResult] = useState<CompanyAnalysisResult | null>(() =>
-    getClientFallbackCompanyAnalysis(initialCompanyName, initialJobRole, userProfile)
+    generateDomainCompanyAnalysis(initialCompanyName, initialJobRole, userProfile)
   );
   const [activeStepTab, setActiveStepTab] = useState<'all' | 'step1' | 'step2' | 'step3'>('all');
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Synchronize when initialCompanyName or initialJobRole changes from outside
+  useEffect(() => {
+    if (initialCompanyName) setCompanyName(initialCompanyName);
+    if (initialJobRole) setTargetJobRole(initialJobRole);
+    setResult(generateDomainCompanyAnalysis(initialCompanyName, initialJobRole || '엔지니어링 R&D', userProfile));
+  }, [initialCompanyName, initialJobRole]);
 
   const handleAnalyze = async (cName?: string, role?: string) => {
     const targetCompany = (cName || companyName).trim();
@@ -128,14 +71,14 @@ export const CompanyAnalysisSection: React.FC<CompanyAnalysisSectionProps> = ({
       if (data.success && data.data) {
         setResult(data.data);
       } else {
-        setResult(getClientFallbackCompanyAnalysis(targetCompany, targetRole, userProfile));
+        setResult(generateDomainCompanyAnalysis(targetCompany, targetRole, userProfile));
       }
     } catch (err: any) {
       clearTimeout(timer1);
       clearTimeout(timer2);
       clearTimeout(abortTimeout);
       console.warn('Network issue caught, serving verified company synthesis:', err);
-      setResult(getClientFallbackCompanyAnalysis(targetCompany, targetRole, userProfile));
+      setResult(generateDomainCompanyAnalysis(targetCompany, targetRole, userProfile));
     } finally {
       setLoading(false);
     }
