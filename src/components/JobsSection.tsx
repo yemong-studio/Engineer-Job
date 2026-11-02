@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Bookmark, ExternalLink, MapPin, GraduationCap, Briefcase, X, Sparkles } from 'lucide-react';
 import { JobPosting } from '../types';
-import { ENGINEERING_MAJORS, REGIONS, EXPERIENCE_LEVELS } from '../lib/constants';
+import { ENGINEERING_MAJORS, REGIONS, EXPERIENCE_LEVELS, INITIAL_JOB_POSTINGS } from '../lib/constants';
 
 interface JobsSectionProps {
   onToggleSaveJob: (job: JobPosting) => void;
@@ -22,7 +22,7 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
   const [selectedRegion, setSelectedRegion] = useState<string>('전국');
   const [selectedEducation, setSelectedEducation] = useState<string>('전체');
 
-  const [jobs, setJobs] = useState<JobPosting[]>([]);
+  const [jobs, setJobs] = useState<JobPosting[]>(() => INITIAL_JOB_POSTINGS);
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedJob, setSelectedJob] = useState<JobPosting | null>(null);
 
@@ -48,14 +48,41 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
         }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (data.success && Array.isArray(data.jobs)) {
         setJobs(data.jobs);
+        setLoading(false);
+        return;
       }
     } catch (err) {
-      console.error('Failed to search jobs', err);
-    } finally {
-      setLoading(false);
+      console.warn('Jobs search endpoint error, using client dataset filter:', err);
     }
+
+    // High fidelity client fallback filter
+    let filtered = [...INITIAL_JOB_POSTINGS];
+    if (keyword && keyword.trim()) {
+      const q = keyword.trim().toLowerCase();
+      filtered = filtered.filter(
+        (j) =>
+          j.title.toLowerCase().includes(q) ||
+          j.company.toLowerCase().includes(q) ||
+          j.skills.some((s) => s.toLowerCase().includes(q)) ||
+          j.description.toLowerCase().includes(q)
+      );
+    }
+    if (selectedMajor !== '전체') {
+      filtered = filtered.filter((j) => (j.major as any[]).includes(selectedMajor));
+    }
+    if (selectedExperience !== '전체') {
+      filtered = filtered.filter((j) => j.experience === selectedExperience || j.experience === '신입·경력');
+    }
+    if (selectedRegion !== '전체' && selectedRegion !== '전국') {
+      filtered = filtered.filter((j) => j.location.includes(selectedRegion));
+    }
+    if (selectedEducation !== '전체') {
+      filtered = filtered.filter((j) => j.education.includes(selectedEducation));
+    }
+    setJobs(filtered);
+    setLoading(false);
   };
 
   useEffect(() => {
