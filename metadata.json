@@ -1,0 +1,6 @@
+{
+  "name": "ENGINEER JOB",
+  "description": "AI 기반 공학 취업·산업 분석 플랫폼 (채용정보 통합 검색, Industry HINT, AI 기업 분석 대시보드, 맞춤 직무 추천, 이력서/자소서 첨삭)",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
