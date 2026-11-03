@@ -13,6 +13,7 @@ import {
   Award,
   Layers,
   CheckCircle2,
+  Save,
 } from 'lucide-react';
 import { JobRecommendation, UserProfile, EngineeringMajor } from '../types';
 import { ENGINEERING_MAJORS } from '../lib/constants';
@@ -132,6 +133,9 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
   const isGuest = userProfile.id === 'usr_guest';
   const [isFormOpen, setIsFormOpen] = useState(true);
 
+  // Toast notification showing when content is saved/entered via Enter key or Input button
+  const [savedNotification, setSavedNotification] = useState<string | null>(null);
+
   // Sync with prop changes (e.g. user switch in Navbar)
   useEffect(() => {
     setProfile(userProfile);
@@ -142,6 +146,31 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
     const updated = { ...profile, [field]: value };
     setProfile(updated);
     onUpdateProfile(updated);
+  };
+
+  // Called when user hits Enter key in any input field:
+  // Instead of triggering recommendations, this saves/enters the value into the profile!
+  const handleInputEnter = (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>, fieldLabel?: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      // Immediately commit changes to parent
+      onUpdateProfile(profile);
+
+      // Show temporary confirmation toast
+      const labelText = fieldLabel ? `'${fieldLabel}' 입력 완료 (저장됨)` : '입력 내용이 정상적으로 반영되었습니다.';
+      setSavedNotification(labelText);
+      setTimeout(() => setSavedNotification(null), 2500);
+
+      // Natural blur
+      (e.target as HTMLElement).blur();
+    }
+  };
+
+  // Explicit "입력 완료" button click handler
+  const handleManualEnterClick = () => {
+    onUpdateProfile(profile);
+    setSavedNotification('입력하신 모든 정보가 정상적으로 저장되었습니다.');
+    setTimeout(() => setSavedNotification(null), 2500);
   };
 
   const handleAddExperience = () => {
@@ -155,6 +184,8 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
     };
     const updatedExperiences = [...(profile.projectExperience || []), newExp];
     handleProfileFieldChange('projectExperience', updatedExperiences);
+    setSavedNotification('새 경험 항목이 추가되었습니다. 내용을 적고 Enter를 누르시면 입력됩니다.');
+    setTimeout(() => setSavedNotification(null), 3000);
   };
 
   const handleUpdateExperience = (index: number, key: string, value: string) => {
@@ -169,8 +200,11 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
   const handleRemoveExperience = (index: number) => {
     const updatedExperiences = (profile.projectExperience || []).filter((_, i) => i !== index);
     handleProfileFieldChange('projectExperience', updatedExperiences);
+    setSavedNotification('경험 항목이 삭제되었습니다.');
+    setTimeout(() => setSavedNotification(null), 2000);
   };
 
+  // Recommendations are ONLY triggered by clicking the recommendation button
   const handleGetRecommendations = async () => {
     // Immediately persist latest local profile state to parent
     onUpdateProfile(profile);
@@ -202,16 +236,16 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
     }
   };
 
-  // Common Enter key handler for inputs
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleGetRecommendations();
-    }
-  };
-
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Toast Notification on Enter / Input Commit */}
+      {savedNotification && (
+        <div className="fixed top-20 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg border border-slate-700 flex items-center gap-2.5 text-xs animate-in fade-in slide-in-from-top-2 duration-200">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span className="font-medium">{savedNotification}</span>
+        </div>
+      )}
+
       {/* 1. Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
         <div>
@@ -229,10 +263,11 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
             AI 맞춤 직무·기업 추천
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            마이페이지로 이동할 필요 없이, 아래에서 직접 스펙을 입력하고 <strong className="text-blue-600 font-semibold">Enter(엔터키)</strong>를 누르면 맞춤 직무와 기업을 분석해 드립니다.
+            마이페이지로 이동할 필요 없이, 아래에서 직접 스펙을 작성한 뒤 <strong className="text-slate-800 font-semibold">[추천받기] 버튼을 클릭</strong>하여 AI 분석을 실행하세요.
           </p>
         </div>
 
+        {/* Recommendations button: ONLY works on click! */}
         <button
           type="button"
           onClick={handleGetRecommendations}
@@ -247,7 +282,7 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
           ) : (
             <>
               <Sparkles className="w-4 h-4" />
-              <span>입력한 스펙으로 추천받기 (Enter)</span>
+              <span>입력한 스펙으로 맞춤 추천받기</span>
             </>
           )}
         </button>
@@ -266,12 +301,12 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
                 <h3 className="text-base font-bold text-slate-900">
                   내 엔지니어링 스펙 & 희망 조건 입력
                 </h3>
-                <span className="text-xs text-slate-400 hidden sm:inline">
-                  (수정 후 엔터키를 치면 즉시 분석 시작)
+                <span className="text-xs text-blue-600 font-medium hidden sm:inline">
+                  (내용 작성 후 Enter키를 누르면 입력 버튼 없이 즉시 입력 완료)
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                지원직무, 나이, 학교, 학과, 학점, 영어성적 및 프로젝트 경험을 자유롭게 입력하세요.
+                지원직무, 나이, 학교, 학과, 학점, 영어성적 및 프로젝트 경험을 자유롭게 작성하세요.
               </p>
             </div>
           </div>
@@ -287,30 +322,24 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
           </div>
         </div>
 
-        {/* Form Body */}
+        {/* Form Body - Enter key does NOT trigger recommendation */}
         {isFormOpen && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleGetRecommendations();
-            }}
-            className="p-6 space-y-6"
-          >
+          <div className="p-6 space-y-6">
             {/* Top Row: Target Role & Age */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="md:col-span-2">
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
                   <Briefcase className="w-3.5 h-3.5 text-blue-600" />
                   <span>지원 희망 직무 (Target Role)</span>
-                  <span className="text-[11px] text-blue-600 font-normal ml-auto">
-                    *입력 후 Enter시 분석
+                  <span className="text-[11px] text-slate-400 font-normal ml-auto">
+                    *작성 후 Enter 누르면 입력 완료
                   </span>
                 </label>
                 <input
                   type="text"
                   value={profile.targetRole || ''}
                   onChange={(e) => handleProfileFieldChange('targetRole', e.target.value)}
-                  onKeyDown={handleKeyDown}
+                  onKeyDown={(e) => handleInputEnter(e, '지원 희망 직무')}
                   placeholder="예: 샤시/의장 메카트로닉스 선행 구조설계 연구원, 반도체 공정설비, 로봇 HW 설계"
                   className="w-full px-3.5 py-2.5 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-500 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all shadow-2xs font-medium"
                 />
@@ -324,7 +353,7 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
                   type="text"
                   value={profile.age || ''}
                   onChange={(e) => handleProfileFieldChange('age', e.target.value)}
-                  onKeyDown={handleKeyDown}
+                  onKeyDown={(e) => handleInputEnter(e, '나이')}
                   placeholder="예: 26세"
                   className="w-full px-3.5 py-2.5 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-500 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all shadow-2xs"
                 />
@@ -342,7 +371,7 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
                   type="text"
                   value={profile.university || ''}
                   onChange={(e) => handleProfileFieldChange('university', e.target.value)}
-                  onKeyDown={handleKeyDown}
+                  onKeyDown={(e) => handleInputEnter(e, '출신 학교')}
                   placeholder="예: 한국공과대학교, 부산대학교"
                   className="w-full px-3.5 py-2 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-500 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 outline-none transition-all shadow-2xs"
                 />
@@ -356,7 +385,7 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
                 <select
                   value={profile.major}
                   onChange={(e) => handleProfileFieldChange('major', e.target.value as EngineeringMajor)}
-                  onKeyDown={handleKeyDown}
+                  onKeyDown={(e) => handleInputEnter(e, '학과/전공')}
                   className="w-full px-3.5 py-2 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-500 rounded-xl text-xs text-slate-900 outline-none transition-all shadow-2xs cursor-pointer"
                 >
                   {ENGINEERING_MAJORS.map((m) => (
@@ -375,7 +404,7 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
                   type="text"
                   value={profile.gpa || ''}
                   onChange={(e) => handleProfileFieldChange('gpa', e.target.value)}
-                  onKeyDown={handleKeyDown}
+                  onKeyDown={(e) => handleInputEnter(e, '학점')}
                   placeholder="예: 3.85 / 4.5"
                   className="w-full px-3.5 py-2 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-500 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 outline-none transition-all shadow-2xs"
                 />
@@ -390,7 +419,7 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
                   type="text"
                   value={profile.englishScore || ''}
                   onChange={(e) => handleProfileFieldChange('englishScore', e.target.value)}
-                  onKeyDown={handleKeyDown}
+                  onKeyDown={(e) => handleInputEnter(e, '영어 성적')}
                   placeholder="예: TOEIC 850, OPIc IH, 토스 AL"
                   className="w-full px-3.5 py-2 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-500 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 outline-none transition-all shadow-2xs"
                 />
@@ -442,14 +471,27 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
                         <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">
                           경험 #{index + 1}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveExperience(index)}
-                          className="text-slate-400 hover:text-red-500 p-1 rounded-md transition-colors cursor-pointer"
-                          title="이 경험 삭제"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onUpdateProfile(profile);
+                              setSavedNotification(`경험 #${index + 1} 항목이 입력/저장되었습니다.`);
+                              setTimeout(() => setSavedNotification(null), 2000);
+                            }}
+                            className="text-[11px] text-blue-600 hover:text-blue-800 font-medium px-2 py-0.5 rounded border border-blue-200 bg-white cursor-pointer"
+                          >
+                            입력 완료
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveExperience(index)}
+                            className="text-slate-400 hover:text-red-500 p-1 rounded-md transition-colors cursor-pointer"
+                            title="이 경험 삭제"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -461,7 +503,7 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
                             type="text"
                             value={exp.title}
                             onChange={(e) => handleUpdateExperience(index, 'title', e.target.value)}
-                            onKeyDown={handleKeyDown}
+                            onKeyDown={(e) => handleInputEnter(e, `경험 #${index + 1} 명칭`)}
                             placeholder="예: 자율주행 모빌리티용 조향 액추에이터 경량화 설계"
                             className="w-full px-3 py-1.5 bg-white border border-slate-200 focus:border-blue-500 rounded-lg text-xs text-slate-900 outline-none"
                           />
@@ -475,7 +517,7 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
                             type="text"
                             value={exp.role}
                             onChange={(e) => handleUpdateExperience(index, 'role', e.target.value)}
-                            onKeyDown={handleKeyDown}
+                            onKeyDown={(e) => handleInputEnter(e, `경험 #${index + 1} 역할`)}
                             placeholder="예: 구조 설계 및 FEA 강도 해석 총괄"
                             className="w-full px-3 py-1.5 bg-white border border-slate-200 focus:border-blue-500 rounded-lg text-xs text-slate-900 outline-none"
                           />
@@ -491,7 +533,7 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
                             type="text"
                             value={exp.description}
                             onChange={(e) => handleUpdateExperience(index, 'description', e.target.value)}
-                            onKeyDown={handleKeyDown}
+                            onKeyDown={(e) => handleInputEnter(e, `경험 #${index + 1} 활동/기술`)}
                             placeholder="예: CATIA, ANSYS Mechanical 이용 위상최적화 리브 재설계 수행"
                             className="w-full px-3 py-1.5 bg-white border border-slate-200 focus:border-blue-500 rounded-lg text-xs text-slate-900 outline-none"
                           />
@@ -505,7 +547,7 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
                             type="text"
                             value={exp.metricOutcome || ''}
                             onChange={(e) => handleUpdateExperience(index, 'metricOutcome', e.target.value)}
-                            onKeyDown={handleKeyDown}
+                            onKeyDown={(e) => handleInputEnter(e, `경험 #${index + 1} 성과 지표`)}
                             placeholder="예: 질량 18.4% 감량 및 피로 안전계수 1.6 달성"
                             className="w-full px-3 py-1.5 bg-white border border-slate-200 focus:border-blue-500 rounded-lg text-xs text-slate-900 outline-none"
                           />
@@ -517,27 +559,27 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
               )}
             </div>
 
-            {/* Bottom Actions Banner */}
+            {/* Bottom Notice & Explicit Input Button */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs">
               <div className="flex items-center gap-2 text-slate-500">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                 <span>
-                  모든 입력란에서 <strong className="text-slate-800 font-semibold">Enter키</strong>를 누르면 입력 내용이 저장되고 즉시 AI 추천이 시작됩니다.
+                  내용을 적고 <strong className="text-slate-800 font-semibold">Enter키</strong>를 누르면 '입력' 버튼을 누르지 않아도 바로 입력(저장)됩니다.
                 </span>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 ml-auto">
                 <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white rounded-lg font-semibold flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs ml-auto"
+                  type="button"
+                  onClick={handleManualEnterClick}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium flex items-center gap-1.5 cursor-pointer transition-colors"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-blue-300" />
-                  <span>맞춤 직무 추천 실행 (Enter)</span>
+                  <Save className="w-3.5 h-3.5" />
+                  <span>스펙 입력 완료 (저장)</span>
                 </button>
               </div>
             </div>
-          </form>
+          </div>
         )}
       </div>
 
@@ -665,9 +707,10 @@ export const RecommendationSection: React.FC<RecommendationSectionProps> = ({
             공학 전공 및 사용 가능 툴에 최적화된 추천을 받아보세요
           </h3>
           <p className="text-xs text-slate-500 mb-5 max-w-md mx-auto">
-            위 입력창에서 지원직무, 나이, 학교, 학과, 학점, 영어성적 및 프로젝트 경험을 작성하고 Enter를 누르시면 최적의 직무를 제안합니다.
+            위 입력창에서 지원직무, 나이, 학교, 학과, 학점, 영어성적 및 프로젝트 경험을 작성하고 [입력한 스펙으로 맞춤 추천받기] 버튼을 클릭하시면 최적의 직무를 제안합니다.
           </p>
           <button
+            type="button"
             onClick={handleGetRecommendations}
             className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
           >

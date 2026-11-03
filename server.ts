@@ -103,29 +103,41 @@ async function withGeminiTimeout<T>(
 
 // Curated live engineering fallback news generator if external network is slow/blocked
 function getFallbackArticles(searchQuery: string) {
+  const enc = encodeURIComponent(searchQuery);
   return [
     {
       title: `${searchQuery} 차세대 첨단 양산 공정 기술 및 R&D 로드맵 발표`,
-      link: 'https://news.google.com',
+      link: `https://search.naver.com/search.naver?where=news&query=${enc}`,
       pubDate: new Date().toLocaleDateString('ko-KR'),
       source: '전자신문',
       origin: '국내',
     },
     {
       title: `${searchQuery} 산업 글로벌 공급망 재편과 핵심 엔지니어링 인재 확보 전략`,
-      link: 'https://news.google.com',
+      link: `https://search.naver.com/search.naver?where=news&query=${enc}`,
       pubDate: new Date().toLocaleDateString('ko-KR'),
       source: '한국경제',
       origin: '국내',
     },
     {
       title: `Global Breakthrough in Next-Generation ${searchQuery} Scalability & Architecture`,
-      link: 'https://news.google.com',
+      link: `https://www.google.com/search?q=${enc}+engineering+technology&tbm=nws`,
       pubDate: new Date().toLocaleDateString('ko-KR'),
       source: 'IEEE Spectrum',
       origin: '해외',
     },
   ];
+}
+
+function normalizePortalName(id?: string): string {
+  if (!id || id === 'all') return 'all';
+  if (id === 'saramin' || id === '사람인') return '사람인';
+  if (id === 'wanted' || id === '원티드') return '원티드';
+  if (id === 'jobkorea' || id === '잡코리아') return '잡코리아';
+  if (id === 'linkedin' || id === '링크드인') return '링크드인';
+  if (id === 'incruit' || id === '인크루트') return '인크루트';
+  if (id === 'direct' || id.includes('기업')) return '기업 공식채용';
+  return id;
 }
 
 // Fast live RSS news fetcher with 1.8s quick timeout
@@ -205,6 +217,8 @@ async function startServer() {
       const hasKeyword = keyword && typeof keyword === 'string' && keyword.trim();
       const q = hasKeyword ? keyword.trim().toLowerCase() : '';
 
+      const normalizedPortal = normalizePortalName(portal);
+
       // Base sample listings
       let baseListings = [...INITIAL_JOB_POSTINGS];
       if (hasKeyword) {
@@ -217,6 +231,10 @@ async function startServer() {
         );
       }
 
+      if (normalizedPortal !== 'all') {
+        baseListings = baseListings.filter((j) => j.source.includes(normalizedPortal));
+      }
+
       // Generate multi-portal integrated postings across Saramin, Wanted, JobKorea, LinkedIn, Incruit, Direct
       const dynamicPortalPostings = generateMultiPortalPostings({
         keyword: keyword || '',
@@ -224,11 +242,11 @@ async function startServer() {
         experience: experience || '전체',
         region: region || '전국',
         education: education || '전체',
-        portal: portal || 'all',
+        portal: normalizedPortal,
       });
 
       // Combine base listings + live multi-portal postings
-      let combined = [...baseListings, ...dynamicPortalPostings];
+      let combined = [...dynamicPortalPostings, ...baseListings];
 
       // De-duplicate by company + title
       const seen = new Set<string>();
@@ -255,8 +273,8 @@ async function startServer() {
         results = results.filter((j) => j.education.includes(education));
       }
 
-      if (portal && portal !== 'all') {
-        results = results.filter((j) => j.source.includes(portal) || j.category.includes(portal));
+      if (normalizedPortal !== 'all') {
+        results = results.filter((j) => j.source.includes(normalizedPortal));
       }
 
       const userSavedSet = userId ? database.savedJobs.get(userId) || new Set<string>() : new Set<string>();
@@ -382,13 +400,22 @@ ${JSON.stringify(combinedArticles, null, 2)}
 
       const analyzedArticles: IndustryNewsItem[] = combinedArticles.map((raw, idx) => {
         const aiData = parsed.articles?.[idx] || {};
+        let articleUrl = raw.link;
+        if (!articleUrl || articleUrl === 'https://news.google.com' || articleUrl.includes('news.google.com/rss/articles')) {
+          const cleanTitle = raw.title.replace(/\[.*?\]|\(.*?\)/g, '').trim();
+          if (raw.origin === '국내') {
+            articleUrl = `https://search.naver.com/search.naver?where=news&query=${encodeURIComponent(cleanTitle)}`;
+          } else {
+            articleUrl = `https://www.google.com/search?q=${encodeURIComponent(cleanTitle)}&tbm=nws`;
+          }
+        }
         return {
           id: `news_${Date.now()}_${idx}`,
           title: raw.title,
           source: raw.source,
           origin: raw.origin,
           publishedAt: raw.pubDate,
-          originalUrl: raw.link,
+          originalUrl: articleUrl,
           industryCategory: aiData.industryCategory || `${searchQuery} 첨단 공학기술`,
           threeLineSummary: aiData.threeLineSummary || [
             `${searchQuery} 분야의 차세대 선행 기술 연구 및 양산 공정 로드맵 발표`,
@@ -444,7 +471,18 @@ ${JSON.stringify(combinedArticles, null, 2)}
 - 기준일은 2026년 현재 기준입니다.
 
 다음 3단계를 충실히 작성하여 JSON으로 반환하세요:
-STEP 1. 경쟁사와 차별점 분석 (majorCompetitors, businessDomain, keyProductsAndTech, techStrength, marketCompetitiveness, differentiators)
+STEP 1. 경쟁사와 차별점 분석:
+- majorCompetitors: 주요 경쟁사 이름 목록
+- competitorDetails: 각 주요 경쟁사에 대해 다음을 포함하는 객체 배열 2~3개:
+  * name: 경쟁 기업명
+  * rivalryReason: 어떤 제품/공정/기술 분야에서 왜 경쟁 관계인지 구체적인 이유와 대립 구도 설명 (필수)
+  * marketComparison: 기술력 및 시장 점유율 비교 (어떤 점이 앞서고 어떤 점이 뒤처지는지)
+- basisEvidences: 본 분석 의견을 도출할 수 있었던 기반이 되는 실제 공시, 기사, 또는 기술 문서 2~3건의 객체 배열:
+  * title: 기사 또는 공시 보고서 제목 (예: [전자신문] ..., [공식 공시] ...)
+  * publisher: 언론사 또는 발행 기관 (예: 전자신문, 한국경제, 금융감독원 DART, Bloomberg)
+  * url: 해당 원문 검색 URL (네이버 뉴스 검색 또는 DART 전자공시 링크)
+  * snippet: 이 분석 의견을 뒷받침하는 핵심 팩트/데이터 요약
+- businessDomain, keyProductsAndTech, techStrength, marketCompetitiveness, differentiators
 STEP 2. 기업의 핵심 과제 분석 (industryShifts, technicalChallenges, productivityAndQualityHurdles, processAndCostIssues, futureGrowthDirection)
 STEP 3. 지원 직무와 연결 (targetJobRole, keyResponsibilities, requiredCompetencies, applicantMatchPoints, coverLetterKeyPhrases, interviewPrepQuestions)
 
@@ -465,6 +503,31 @@ ${applicantProfile ? JSON.stringify(applicantProfile) : '공학 전공 학사 �
                 type: Type.OBJECT,
                 properties: {
                   majorCompetitors: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  competitorDetails: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        name: { type: Type.STRING },
+                        rivalryReason: { type: Type.STRING },
+                        marketComparison: { type: Type.STRING },
+                      },
+                      required: ['name', 'rivalryReason', 'marketComparison'],
+                    },
+                  },
+                  basisEvidences: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        title: { type: Type.STRING },
+                        publisher: { type: Type.STRING },
+                        url: { type: Type.STRING },
+                        snippet: { type: Type.STRING },
+                      },
+                      required: ['title', 'publisher', 'url', 'snippet'],
+                    },
+                  },
                   businessDomain: { type: Type.STRING },
                   keyProductsAndTech: { type: Type.ARRAY, items: { type: Type.STRING } },
                   techStrength: { type: Type.STRING },
@@ -509,6 +572,21 @@ ${applicantProfile ? JSON.stringify(applicantProfile) : '공학 전공 학사 �
       const parsed = await withGeminiTimeout(geminiCall, () => ({}), 4000);
 
       const finalStep1 = parsed.step1 || domainBaseline.step1;
+      if (!finalStep1.competitorDetails || finalStep1.competitorDetails.length === 0) {
+        finalStep1.competitorDetails = domainBaseline.step1.competitorDetails;
+      }
+      if (!finalStep1.basisEvidences || finalStep1.basisEvidences.length === 0) {
+        finalStep1.basisEvidences = domainBaseline.step1.basisEvidences;
+      } else {
+        finalStep1.basisEvidences = finalStep1.basisEvidences.map((ev: any, idx: number) => {
+          let url = ev.url;
+          if (!url || !url.startsWith('http')) {
+            const fallbackUrl = domainBaseline.step1.basisEvidences?.[idx]?.url;
+            url = fallbackUrl || `https://search.naver.com/search.naver?where=news&query=${encodeURIComponent(companyName + ' ' + (ev.title || '경쟁'))}`;
+          }
+          return { ...ev, url };
+        });
+      }
       const finalStep2 = parsed.step2 || domainBaseline.step2;
       const finalStep3 = parsed.step3 || domainBaseline.step3;
 
@@ -554,7 +632,7 @@ ${JSON.stringify(profile.projectExperience || [], null, 2)}
 
 [요구사항]
 1. 지원자가 입력한 '지원 희망 직무(${profile.targetRole || '기재 직무'})'와 전공(${profile.major}), 학점(${profile.gpa}), 어학성적(${profile.englishScore}), 그리고 구체적인 프로젝트 경험 성과를 직접적으로 연계하여 추천 사유(rationale)와 자소서 강조 포인트(strategicProjectHighlight)에 구체적으로 명시하세요.
-2. 각 직무별로 대기업, 글로벌/유니콘, 강소·중견기업 등 3개의 추천 목표 기업을 포함하세요.
+2. 대기업에만 치우치지 말고, 각 직무별로 중견기업(코스닥 히든챔피언, 전문제조사), 강소·테크 유니콘(AI/로보틱스 딥테크), 외국계 기업, 대기업 등 다양한 규모의 추천 목표 기업군 3개를 균형 있게 반드시 구성하세요 (예: 원익IPS, 레인보우로보틱스, 에코프로비엠, 한미반도체, 삼기이브이, 리벨리온, ASML 등 포함).
 3. 스펙 적합도(matchScore, 85~98점 사이)와 보완해야 할 역량(requiredUpskilling)을 제시하세요.
 `;
 

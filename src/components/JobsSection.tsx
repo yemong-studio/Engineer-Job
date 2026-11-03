@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Bookmark, ExternalLink, MapPin, GraduationCap, Briefcase, X, Sparkles, Filter, Globe } from 'lucide-react';
-import { JobPosting } from '../types';
+import {
+  Search,
+  Bookmark,
+  ExternalLink,
+  MapPin,
+  GraduationCap,
+  Briefcase,
+  X,
+  Sparkles,
+  Filter,
+  Globe,
+  Building2,
+  CheckCircle2,
+} from 'lucide-react';
+import { JobPosting, CompanyTier } from '../types';
 import { ENGINEERING_MAJORS, REGIONS, EXPERIENCE_LEVELS, INITIAL_JOB_POSTINGS } from '../lib/constants';
 import { JOB_PORTALS, generateMultiPortalPostings } from '../lib/multiPortalJobs';
 
@@ -23,6 +36,7 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
   const [selectedRegion, setSelectedRegion] = useState<string>('전국');
   const [selectedEducation, setSelectedEducation] = useState<string>('전체');
   const [selectedPortal, setSelectedPortal] = useState<string>('all');
+  const [selectedTier, setSelectedTier] = useState<string>('all');
 
   const [jobs, setJobs] = useState<JobPosting[]>(() => [
     ...INITIAL_JOB_POSTINGS,
@@ -40,6 +54,7 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
   const fetchJobs = async (overrideKeyword?: string) => {
     const activeKeyword = overrideKeyword !== undefined ? overrideKeyword : keyword;
     setLoading(true);
+
     try {
       const res = await fetch('/api/jobs/search', {
         method: 'POST',
@@ -56,7 +71,11 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
       });
       const data = await res.json();
       if (data.success && Array.isArray(data.jobs) && data.jobs.length > 0) {
-        setJobs(data.jobs);
+        let results: JobPosting[] = data.jobs;
+        if (selectedTier !== 'all') {
+          results = results.filter((j) => j.companyTier === selectedTier);
+        }
+        setJobs(results);
         setLoading(false);
         return;
       }
@@ -72,6 +91,7 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
       region: selectedRegion,
       education: selectedEducation,
       portal: selectedPortal,
+      tier: selectedTier,
     });
 
     let baseFiltered = [...INITIAL_JOB_POSTINGS];
@@ -86,7 +106,11 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
       );
     }
 
-    let combined = [...baseFiltered, ...dynamicListings];
+    if (selectedPortal !== 'all') {
+      baseFiltered = baseFiltered.filter((j) => j.source.includes(selectedPortal));
+    }
+
+    let combined = [...dynamicListings, ...baseFiltered];
     const seen = new Set<string>();
     let filtered = combined.filter((job) => {
       const key = `${job.company}_${job.title}`.toLowerCase();
@@ -108,7 +132,10 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
       filtered = filtered.filter((j) => j.education.includes(selectedEducation));
     }
     if (selectedPortal !== 'all') {
-      filtered = filtered.filter((j) => j.source.includes(selectedPortal) || j.category.includes(selectedPortal));
+      filtered = filtered.filter((j) => j.source.includes(selectedPortal));
+    }
+    if (selectedTier !== 'all') {
+      filtered = filtered.filter((j) => j.companyTier === selectedTier);
     }
 
     setJobs(filtered);
@@ -117,7 +144,7 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
 
   useEffect(() => {
     fetchJobs();
-  }, [selectedMajor, selectedExperience, selectedRegion, selectedEducation, selectedPortal]);
+  }, [selectedMajor, selectedExperience, selectedRegion, selectedEducation, selectedPortal, selectedTier]);
 
   useEffect(() => {
     if (initialKeyword) {
@@ -143,7 +170,82 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
     setSelectedRegion('전국');
     setSelectedEducation('전체');
     setSelectedPortal('all');
+    setSelectedTier('all');
     fetchJobs('');
+  };
+
+  const getCompanyTierBadge = (tier?: CompanyTier) => {
+    if (!tier) return null;
+    switch (tier) {
+      case '중견기업':
+        return (
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200">
+            중견기업
+          </span>
+        );
+      case '강소·테크 유니콘':
+        return (
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-800 border border-purple-200">
+            강소·테크 유니콘
+          </span>
+        );
+      case '외국계 기업':
+        return (
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+            외국계 기업
+          </span>
+        );
+      case '대기업':
+      default:
+        return (
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+            대기업
+          </span>
+        );
+    }
+  };
+
+  const getPortalBadge = (src: string) => {
+    if (src.includes('사람인')) {
+      return (
+        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+          사람인
+        </span>
+      );
+    }
+    if (src.includes('원티드')) {
+      return (
+        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+          원티드
+        </span>
+      );
+    }
+    if (src.includes('잡코리아')) {
+      return (
+        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-50 text-cyan-700 border border-cyan-200">
+          잡코리아
+        </span>
+      );
+    }
+    if (src.includes('링크드인')) {
+      return (
+        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-700 text-white border border-emerald-800">
+          LinkedIn
+        </span>
+      );
+    }
+    if (src.includes('인크루트')) {
+      return (
+        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+          인크루트
+        </span>
+      );
+    }
+    return (
+      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
+        기업공식
+      </span>
+    );
   };
 
   return (
@@ -152,39 +254,39 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
         <div>
           <div className="text-xs font-semibold text-blue-600 tracking-wider uppercase mb-1">
-            Verified Engineering Recruitment
+            Verified Multi-Portal Engineering Recruitment
           </div>
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
             공학 채용정보 통합 검색
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            외부 공식 채용 포털의 공학·R&D 실시간 공고를 전공 및 직무 조건에 맞춰 검색합니다.
+            대기업뿐만 아니라 <strong>중견기업 히든챔피언, 강소·테크 유니콘, 외국계 기업</strong>까지 사람인·원티드·잡코리아 등의 실제 채용공고 원문으로 바로 연결됩니다.
           </p>
         </div>
 
-        {/* Tabular summary */}
-        <div className="flex items-center gap-3 text-xs text-slate-500 tabular-nums">
-          <span>검색된 공고 <strong>{jobs.length}</strong>건</span>
-          <span aria-hidden="true">·</span>
-          <span>원문 링크 직접 연동</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono text-slate-500 bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-2xs">
+            검색 결과: <strong className="text-slate-900">{jobs.length}</strong>건
+          </span>
         </div>
       </div>
 
       {/* Multi-portal Integrated Search Banner & Filter Bar */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm mb-8 space-y-4">
-        {/* Portal selection tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar border-b border-slate-100 pb-3">
+        {/* 1. Portal selection tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto text-xs no-scrollbar border-b border-slate-100 pb-3">
           <span className="text-slate-400 font-medium shrink-0 flex items-center gap-1 mr-1">
             <Globe className="w-3.5 h-3.5 text-blue-600" />
-            포털 연동:
+            채용 포털 선택:
           </span>
           {JOB_PORTALS.map((portal) => {
-            const isActive = selectedPortal === (portal.id === 'all' ? 'all' : portal.name);
+            const targetVal = portal.id === 'all' ? 'all' : portal.name;
+            const isActive = selectedPortal === targetVal;
             return (
               <button
                 key={portal.id}
                 type="button"
-                onClick={() => setSelectedPortal(portal.id === 'all' ? 'all' : portal.name)}
+                onClick={() => setSelectedPortal(targetVal)}
                 className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all cursor-pointer ${
                   isActive
                     ? 'bg-slate-900 text-white shadow-xs'
@@ -192,6 +294,37 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
                 }`}
               >
                 {portal.name}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 2. Company Tier selection tabs (대기업만 나오지 않도록 중견/강소/외국계 바로가기) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto text-xs no-scrollbar pb-1">
+          <span className="text-slate-400 font-medium shrink-0 flex items-center gap-1 mr-1">
+            <Building2 className="w-3.5 h-3.5 text-blue-600" />
+            기업 규모:
+          </span>
+          {[
+            { id: 'all', label: '전체 규모' },
+            { id: '중견기업', label: '중견기업 / 히든챔피언' },
+            { id: '강소·테크 유니콘', label: '강소·테크 유니콘' },
+            { id: '외국계 기업', label: '외국계 기업' },
+            { id: '대기업', label: '대기업' },
+          ].map((tier) => {
+            const isActive = selectedTier === tier.id;
+            return (
+              <button
+                key={tier.id}
+                type="button"
+                onClick={() => setSelectedTier(tier.id)}
+                className={`px-2.5 py-1 rounded-md font-medium whitespace-nowrap transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {tier.label}
               </button>
             );
           })}
@@ -205,7 +338,7 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
               type="text"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              placeholder="기업명(현대, 삼성, 두산, LG, 한화), 공학 기술(원자력, 배터리, FEA, CATIA, HBM), 직무명"
+              placeholder="기업명(원익IPS, 리벨리온, 에코프로, 한미반도체, 현대), 공학기술(반도체, 배터리, 로봇, 임베디드, CAD), 직무"
               className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-slate-900"
             />
           </div>
@@ -226,7 +359,7 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
             { label: '차세대 반도체 HBM', query: '반도체' },
             { label: '임베디드 제어 SW', query: '임베디드' },
             { label: '공정기술 & 품질', query: '공정기술' },
-            { label: '로보틱스 & 메카', query: '로봇' },
+            { label: '로보틱스 & 피지컬AI', query: '로봇' },
             { label: '화학공학 & 신소재', query: '화학' },
             { label: '항공우주 & 방산', query: '항공우주' },
           ].map((theme) => (
@@ -294,45 +427,66 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
 
           {/* Education Select */}
           <div>
-            <label className="block text-slate-600 font-medium mb-1">학력 조건</label>
+            <label className="block text-slate-600 font-medium mb-1">최소 학력</label>
             <select
               value={selectedEducation}
               onChange={(e) => setSelectedEducation(e.target.value)}
               className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
             >
-              <option value="전체">학력 무관 / 전체</option>
-              <option value="학사">학사 이상</option>
-              <option value="석사">석사 이상</option>
+              <option value="전체">학력 무관</option>
+              <option value="학사 이상">학사 이상</option>
+              <option value="석사 이상">석사 이상</option>
             </select>
           </div>
         </div>
 
-        {/* Filter tags & Reset */}
-        {(keyword || selectedMajor !== '전체' || selectedExperience !== '전체' || selectedRegion !== '전국' || selectedPortal !== 'all') && (
-          <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
-            <div className="flex items-center gap-2">
-              <span>적용 필터:</span>
+        {/* Active Filter Tags */}
+        {(selectedMajor !== '전체' ||
+          selectedExperience !== '전체' ||
+          selectedRegion !== '전국' ||
+          selectedEducation !== '전체' ||
+          selectedPortal !== 'all' ||
+          selectedTier !== 'all' ||
+          keyword) && (
+          <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-slate-400 font-medium">적용 필터:</span>
               {selectedPortal !== 'all' && (
-                <span className="px-2 py-0.5 rounded bg-slate-900 text-white font-medium">{selectedPortal}</span>
+                <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-semibold">
+                  포털: {selectedPortal}
+                </span>
               )}
-              {keyword && <span className="font-semibold text-blue-600">"{keyword}"</span>}
-              {selectedMajor !== '전체' && <span className="font-medium text-slate-900">{selectedMajor}</span>}
+              {selectedTier !== 'all' && (
+                <span className="px-2 py-0.5 rounded bg-teal-100 text-teal-800 font-semibold">
+                  규모: {selectedTier}
+                </span>
+              )}
+              {selectedMajor !== '전체' && (
+                <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                  {selectedMajor}
+                </span>
+              )}
               {selectedExperience !== '전체' && (
-                <>
-                  <span aria-hidden="true">·</span>
-                  <span className="font-medium text-slate-900">{selectedExperience}</span>
-                </>
+                <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                  {selectedExperience}
+                </span>
               )}
               {selectedRegion !== '전국' && (
-                <>
-                  <span aria-hidden="true">·</span>
-                  <span className="font-medium text-slate-900">{selectedRegion}</span>
-                </>
+                <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                  {selectedRegion}
+                </span>
+              )}
+              {keyword && (
+                <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                  '{keyword}'
+                </span>
               )}
             </div>
+
             <button
+              type="button"
               onClick={handleResetFilters}
-              className="text-slate-500 hover:text-slate-800 underline cursor-pointer"
+              className="text-slate-500 hover:text-slate-800 text-xs underline cursor-pointer"
             >
               필터 초기화
             </button>
@@ -344,7 +498,12 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
       {loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-44 bg-slate-100 animate-pulse rounded-xl" />
+            <div key={i} className="h-56 bg-white rounded-xl border border-slate-200 p-5 animate-pulse space-y-3">
+              <div className="h-4 w-32 bg-slate-200 rounded" />
+              <div className="h-6 w-3/4 bg-slate-200 rounded" />
+              <div className="h-4 w-1/2 bg-slate-100 rounded" />
+              <div className="h-10 bg-slate-50 rounded" />
+            </div>
           ))}
         </div>
       )}
@@ -371,24 +530,6 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {jobs.map((job) => {
             const isSaved = savedJobIds.has(job.id);
-            const getPortalBadge = (src: string) => {
-              if (src.includes('사람인')) {
-                return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">사람인</span>;
-              }
-              if (src.includes('원티드')) {
-                return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">원티드</span>;
-              }
-              if (src.includes('잡코리아')) {
-                return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-50 text-cyan-700 border border-cyan-200">잡코리아</span>;
-              }
-              if (src.includes('링크드인')) {
-                return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-700 text-white border border-emerald-800">LinkedIn</span>;
-              }
-              if (src.includes('인크루트')) {
-                return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">인크루트</span>;
-              }
-              return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-300">기업공식</span>;
-            };
 
             return (
               <div
@@ -396,12 +537,13 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
                 className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-all p-5 flex flex-col justify-between group shadow-xs"
               >
                 <div>
-                  {/* Company & Origin Source row with Portal badge */}
+                  {/* Company & Origin Source row with Portal badge & Company Tier */}
                   <div className="flex items-center justify-between gap-2 text-xs text-slate-500 mb-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       {getPortalBadge(job.source)}
+                      {getCompanyTierBadge(job.companyTier)}
                       <span className="font-semibold text-slate-900">{job.company}</span>
-                      <span aria-hidden="true">·</span>
+                      <span aria-hidden="true" className="text-slate-300">·</span>
                       <span className="text-slate-600">{job.category}</span>
                     </div>
 
@@ -409,7 +551,7 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
                     <button
                       type="button"
                       onClick={() => onToggleSaveJob(job)}
-                      className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                      className={`p-1.5 rounded-lg border transition-colors cursor-pointer shrink-0 ${
                         isSaved
                           ? 'border-blue-500 text-blue-600 bg-blue-50'
                           : 'border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50'
@@ -466,11 +608,11 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
                 </div>
 
                 {/* Card Footer: AI Analyze Shortcut & Official External Link */}
-                <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
+                <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs gap-2">
                   <button
                     type="button"
                     onClick={() => onAnalyzeCompany(job.company, job.title)}
-                    className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 cursor-pointer transition-colors"
+                    className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 cursor-pointer transition-colors shrink-0"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-blue-500" />
                     <span>기업·직무 3단계 AI 분석</span>
@@ -488,7 +630,7 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
                       href={job.originalUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium flex items-center gap-1.5 transition-colors"
+                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium flex items-center gap-1.5 transition-colors shrink-0 shadow-2xs"
                     >
                       <span>공고 원문 바로가기</span>
                       <ExternalLink className="w-3 h-3" />
@@ -507,8 +649,12 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
           <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl border border-slate-200">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
-                <div className="text-xs text-slate-500 font-medium mb-1">
-                  {selectedJob.company} · {selectedJob.category}
+                <div className="flex items-center gap-2 text-xs text-slate-500 font-medium mb-1.5">
+                  {getPortalBadge(selectedJob.source)}
+                  {getCompanyTierBadge(selectedJob.companyTier)}
+                  <span>{selectedJob.company}</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{selectedJob.category}</span>
                 </div>
                 <h3 className="text-xl font-bold text-slate-900">{selectedJob.title}</h3>
               </div>
@@ -573,7 +719,7 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
               <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 text-xs text-amber-900">
                 <p className="font-semibold mb-0.5">외부 공식 포털 제공 원칙 안내</p>
                 <p className="text-[11px] text-amber-800 leading-relaxed">
-                  ENGINEER JOB은 외부 채용정보 전문을 무단 복제하지 않으며, 구직자의 안전하고 정확한 지원을 위해 공식 기업 채용 페이지로 직접 이동하도록 제공합니다.
+                  ENGINEER JOB은 외부 채용정보 전문을 무단 복제하지 않으며, 구직자의 안전하고 정확한 지원을 위해 해당 채용 포털의 실시간 검색 및 지원 페이지로 직접 이동하도록 제공합니다.
                 </p>
               </div>
             </div>
@@ -607,7 +753,7 @@ export const JobsSection: React.FC<JobsSectionProps> = ({
                   rel="noopener noreferrer"
                   className="flex-1 sm:flex-none px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
                 >
-                  <span>공식 채용사이트 지원</span>
+                  <span>공고 원문 바로가기</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>

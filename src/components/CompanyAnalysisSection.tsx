@@ -1,5 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Sparkles, CheckCircle2, Bookmark, Copy, Check, ShieldCheck } from 'lucide-react';
+import {
+  Building2,
+  Sparkles,
+  CheckCircle2,
+  Bookmark,
+  Copy,
+  Check,
+  ShieldCheck,
+  ExternalLink,
+  FileText,
+  Globe,
+  Swords,
+} from 'lucide-react';
 import { CompanyAnalysisResult, UserProfile } from '../types';
 import { FEATURE_ANALYSIS_IMAGE } from '../lib/constants';
 import { generateDomainCompanyAnalysis } from '../lib/domainAnalysis';
@@ -112,15 +124,6 @@ ${result.step1.differentiators.map((d) => `- ${d}`).join('\n')}
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const PRESET_COMPANIES = [
-    { name: '현대자동차', role: '전동화 샤시 선행설계' },
-    { name: '삼성전자 DS', role: '반도체 공정설비 엔지니어' },
-    { name: 'SK하이닉스', role: 'HBM 첨단 패키징 R&D' },
-    { name: '한화에어로스페이스', role: '가스터빈 엔진 구조해석' },
-    { name: '두산로보틱스', role: '협동로봇 매니퓰레이터 제어' },
-    { name: 'LG에너지솔루션', role: '전고체 배터리 셀 개발' },
-  ];
-
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Top Banner with FEATURE_ANALYSIS_IMAGE */}
@@ -143,12 +146,12 @@ ${result.step1.differentiators.map((d) => `- ${d}`).join('\n')}
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-3">
-            AI 기업 분석 대시보드
+            AI 기업 심층 분석 대시보드
           </h2>
 
           <p className="text-sm text-slate-300 leading-relaxed mb-6">
-            공학 지원자를 위한 3단계 정밀 분석: <strong>경쟁사 차별점</strong> → <strong>기업 핵심 과제</strong> → <strong>지원 직무 연결 & 자소서 공략 포인트</strong>.
-            공식 발표 자료와 AI 기술 추론의 엄격한 분리로 신뢰도 높은 지원 전략을 세우세요.
+            공학 지원자를 위한 3단계 정밀 분석: <strong>경쟁사 차별점 & 검증 원문</strong> → <strong>기업 핵심 과제</strong> → <strong>지원 직무 연결 & 자소서 공략 포인트</strong>.
+            국내 대기업·중견기업·테크 유니콘은 물론, <strong>ASML, 어플라이드 머티어리얼즈, 램리서치, KLA, 보쉬, 콘티넨탈, 지멘스 등 글로벌 외국계 기업</strong>까지 자유롭게 탐색할 수 있습니다.
           </p>
 
           {/* Input Form */}
@@ -159,54 +162,46 @@ ${result.step1.differentiators.map((d) => `- ${d}`).join('\n')}
             }}
             className="space-y-3"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">분석 대상 기업명</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1">
+                  분석 대상 기업명 (국내 및 외국계)
+                </label>
                 <input
                   type="text"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="예: 현대자동차, 삼성전자, ASML"
+                  placeholder="예: 원익IPS, 현대차, ASML, AMAT, 램리서치, 보쉬..."
                   className="w-full px-3.5 py-2.5 text-sm bg-white text-slate-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">지원 희망 직무 (선택)</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1">
+                  지원 희망 직무 (자유 입력)
+                </label>
                 <input
                   type="text"
                   value={targetJobRole}
                   onChange={(e) => setTargetJobRole(e.target.value)}
-                  placeholder="예: 기구설계, 공정기술, SW제어"
+                  placeholder="예: 플라즈마 챔버 기구설계, EUV 필드 엔지니어, 배터리 공정..."
                   className="w-full px-3.5 py-2.5 text-sm bg-white text-slate-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-1">
-              {/* Preset buttons */}
-              <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                <span className="text-slate-400 font-medium">인기 기업:</span>
-                {PRESET_COMPANIES.map((item) => (
-                  <button
-                    key={item.name}
-                    type="button"
-                    onClick={() => {
-                      setCompanyName(item.name);
-                      setTargetJobRole(item.role);
-                      handleAnalyze(item.name, item.role);
-                    }}
-                    className="px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 text-slate-200 transition-colors cursor-pointer"
-                  >
-                    {item.name}
-                  </button>
-                ))}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+              <div className="flex items-center gap-2 text-xs text-slate-300 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                <Globe className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>
+                  <strong>자유 기업 탐색 지원:</strong> 고정 프리셋 없이 국내 중견/유니콘부터 글로벌 외국계 엔지니어링 기업까지 모든 기업과 직무를 실시간 분석합니다.
+                </span>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 cursor-pointer shadow-sm shrink-0"
+                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm shrink-0"
               >
                 <Sparkles className="w-4 h-4" />
                 <span>
@@ -341,14 +336,20 @@ ${result.step1.differentiators.map((d) => `- ${d}`).join('\n')}
 
           {/* STEP 1: 경쟁사와 차별점 분석 */}
           {(activeStepTab === 'all' || activeStepTab === 'step1') && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center">
-                  1
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center">
+                    1
+                  </span>
+                  <h4 className="text-lg font-bold text-slate-900">STEP 1. 경쟁사와 차별점 분석</h4>
+                </div>
+                <span className="text-xs text-slate-400">
+                  시장 포지셔닝 및 공학적 차별화 요인
                 </span>
-                <h4 className="text-lg font-bold text-slate-900">STEP 1. 경쟁사와 차별점 분석</h4>
               </div>
 
+              {/* Business Domain & Tech Strength */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
                 <div className="space-y-4">
                   <div>
@@ -360,11 +361,11 @@ ${result.step1.differentiators.map((d) => `- ${d}`).join('\n')}
                   </div>
 
                   <div>
-                    <span className="text-xs font-semibold text-slate-400 block mb-1.5">주요 경쟁사 (국내외)</span>
+                    <span className="text-xs font-semibold text-slate-400 block mb-1.5">핵심 제품 및 엔지니어링 플랫폼</span>
                     <div className="flex flex-wrap gap-1.5">
-                      {result.step1.majorCompetitors.map((comp) => (
-                        <span key={comp} className="px-2.5 py-1 bg-slate-100 text-slate-800 text-xs font-medium rounded-md">
-                          {comp}
+                      {result.step1.keyProductsAndTech?.map((prod, idx) => (
+                        <span key={idx} className="px-2.5 py-1 bg-slate-100 text-slate-800 text-xs font-medium rounded-md">
+                          {prod}
                         </span>
                       ))}
                     </div>
@@ -392,6 +393,126 @@ ${result.step1.differentiators.map((d) => `- ${d}`).join('\n')}
                   </div>
                 </div>
               </div>
+
+              {/* Detailed Competitor Analysis (Why are they rivals?) */}
+              <div className="border-t border-slate-100 pt-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Swords className="w-4 h-4 text-blue-600" />
+                    <h5 className="text-sm font-bold text-slate-900 tracking-tight">
+                      경쟁사별 대립 구도 & 상세 분석 (어떤 기업과 왜 경쟁하는가?)
+                    </h5>
+                  </div>
+                  <span className="text-xs text-slate-400">
+                    단위 공정 및 고객사 수주 대립 요인
+                  </span>
+                </div>
+
+                {result.step1.competitorDetails && result.step1.competitorDetails.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {result.step1.competitorDetails.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-slate-50 hover:bg-slate-50/80 border border-slate-200/90 rounded-xl p-4 flex flex-col justify-between transition-colors shadow-2xs"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-200">
+                            <span className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                              <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                              {item.name}
+                            </span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-semibold">
+                              경쟁 기업
+                            </span>
+                          </div>
+
+                          <div className="space-y-2.5 text-xs">
+                            <div>
+                              <span className="text-[11px] font-bold text-blue-900 block mb-1">
+                                ⚡ 경쟁 분야 및 대립 사유
+                              </span>
+                              <p className="text-slate-700 leading-relaxed bg-white p-2.5 rounded-lg border border-slate-200/70 text-[11px]">
+                                {item.rivalryReason}
+                              </p>
+                            </div>
+
+                            <div>
+                              <span className="text-[11px] font-bold text-slate-700 block mb-1">
+                                📊 기술력 & 시장 점유율 비교
+                              </span>
+                              <p className="text-slate-600 leading-relaxed bg-white p-2.5 rounded-lg border border-slate-200/70 text-[11px]">
+                                {item.marketComparison}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {result.step1.majorCompetitors.map((comp) => (
+                      <span key={comp} className="px-3 py-1.5 bg-slate-100 text-slate-800 text-xs font-medium rounded-lg">
+                        {comp}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Basis Evidences & Original Article/Document Links */}
+              {result.step1.basisEvidences && result.step1.basisEvidences.length > 0 && (
+                <div className="border-t border-slate-100 pt-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-emerald-600" />
+                      <h5 className="text-sm font-bold text-slate-900 tracking-tight">
+                        분석 의견 도출 근거 문서 및 원문 기사 (Evidence Sources)
+                      </h5>
+                    </div>
+                    <span className="text-[11px] text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      ※ 실제 기사 및 공식 공시 원문 링크 제공
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {result.step1.basisEvidences.map((ev, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-emerald-50/30 border border-emerald-200/70 rounded-xl p-4 flex flex-col justify-between hover:border-emerald-300 transition-colors shadow-2xs"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                              {ev.publisher}
+                            </span>
+                            <span className="text-[10px] text-slate-400">공식 근거 자료</span>
+                          </div>
+
+                          <h6 className="text-xs font-bold text-slate-900 line-clamp-2 mb-2 leading-snug">
+                            {ev.title}
+                          </h6>
+
+                          <p className="text-[11px] text-slate-600 leading-relaxed mb-3 bg-white p-2.5 rounded-lg border border-emerald-100/80">
+                            <strong className="text-slate-800 block mb-0.5 text-[11px]">핵심 근거 요약:</strong>
+                            {ev.snippet}
+                          </p>
+                        </div>
+
+                        <a
+                          href={ev.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white hover:bg-emerald-600 hover:text-white text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-300 transition-colors cursor-pointer shadow-2xs mt-1"
+                        >
+                          <span>원문 문서 / 기사 바로보기</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

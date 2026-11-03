@@ -11,10 +11,13 @@ export type EngineeringMajor =
   | '항공우주·조선해양'
   | '건축·토목·플랜트';
 
+export type CompanyTier = '대기업' | '중견기업' | '강소·테크 유니콘' | '외국계 기업';
+
 export interface JobPosting {
   id: string;
   title: string;
   company: string;
+  companyTier?: CompanyTier;
   companyLogo?: string;
   major: EngineeringMajor[];
   category: string;
@@ -63,8 +66,23 @@ export interface IndustryHintResult {
   };
 }
 
+export interface CompetitorDetail {
+  name: string;
+  rivalryReason: string; // 어떤 분야에서 왜 경쟁 관계인지 구체적 설명
+  marketComparison: string; // 기술력 및 시장 점유율 비교
+}
+
+export interface EvidenceSource {
+  title: string;
+  publisher: string; // 언론사, DART 전자공시, 리서치 기관 등
+  url: string; // 실제 원문 기사/공시/문서 바로가기 URL
+  snippet: string; // 분석 의견의 근거가 된 핵심 내용
+}
+
 export interface CompanyAnalysisStep1 {
   majorCompetitors: string[];
+  competitorDetails?: CompetitorDetail[];
+  basisEvidences?: EvidenceSource[];
   businessDomain: string;
   keyProductsAndTech: string[];
   techStrength: string;
