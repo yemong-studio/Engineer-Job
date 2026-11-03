@@ -118,18 +118,22 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
+  age?: string;
+  university?: string;
   major: EngineeringMajor;
   degree: string;
   gpa: string;
+  englishScore?: string;
+  targetRole?: string;
   techSkills: string[];
   engineeringTools: string[]; // e.g. CATIA, SolidWorks, MATLAB, Python, ROS, etc.
   projectExperience: {
     title: string;
-    duration: string;
+    duration?: string;
     role: string;
-    techStack: string;
+    techStack?: string;
     description: string;
-    metricOutcome: string;
+    metricOutcome?: string;
   }[];
   preferredRoles: string[];
   preferredRegions: string[];

@@ -32,6 +32,10 @@ export const MyPageSection: React.FC<MyPageSectionProps> = ({
   const [newTool, setNewTool] = useState('');
 
   useEffect(() => {
+    setProfile(userProfile);
+  }, [userProfile]);
+
+  useEffect(() => {
     fetch('/api/supabase/status')
       .then((r) => r.json())
       .then((data) => setServerlessStatus(data))
@@ -224,24 +228,61 @@ export const MyPageSection: React.FC<MyPageSectionProps> = ({
               </div>
 
               <div>
-                <label className="block text-slate-600 font-semibold mb-1">학력 및 학점</label>
+                <label className="block text-slate-600 font-semibold mb-1">지원 희망 직무 및 대학교</label>
                 {isEditing ? (
                   <div className="grid grid-cols-2 gap-2">
                     <input
                       type="text"
+                      value={profile.targetRole || ''}
+                      onChange={(e) => setProfile({ ...profile, targetRole: e.target.value })}
+                      placeholder="지원 희망 직무"
+                      className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                    />
+                    <input
+                      type="text"
+                      value={profile.university || ''}
+                      onChange={(e) => setProfile({ ...profile, university: e.target.value })}
+                      placeholder="대학교"
+                      className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-slate-800 font-medium">
+                    {profile.targetRole || '기재 직무 없음'} {profile.university && `· ${profile.university}`}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-slate-600 font-semibold mb-1">학력, 학점 및 영어성적</label>
+                {isEditing ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="text"
                       value={profile.degree}
                       onChange={(e) => setProfile({ ...profile, degree: e.target.value })}
-                      className="p-2 bg-slate-50 border border-slate-200 rounded-lg"
+                      placeholder="학력"
+                      className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
                     />
                     <input
                       type="text"
                       value={profile.gpa}
                       onChange={(e) => setProfile({ ...profile, gpa: e.target.value })}
-                      className="p-2 bg-slate-50 border border-slate-200 rounded-lg"
+                      placeholder="학점"
+                      className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                    />
+                    <input
+                      type="text"
+                      value={profile.englishScore || ''}
+                      onChange={(e) => setProfile({ ...profile, englishScore: e.target.value })}
+                      placeholder="어학/영어"
+                      className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
                     />
                   </div>
                 ) : (
-                  <p className="text-slate-800">{profile.degree} · 학점 {profile.gpa}</p>
+                  <p className="text-slate-800">
+                    {profile.degree} · 학점 {profile.gpa} {profile.englishScore && `· 어학 ${profile.englishScore}`}
+                  </p>
                 )}
               </div>
 

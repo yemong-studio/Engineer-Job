@@ -538,10 +538,24 @@ ${applicantProfile ? JSON.stringify(applicantProfile) : '공학 전공 학사 �
         return res.status(400).json({ success: false, message: '사용자 프로필 정보가 필요합니다.' });
       }
 
-      const prompt = `당신은 이공계 최고 커리어 컨설턴트입니다. 다음 공학 전공 지원자의 스펙과 프로젝트 경험을 심층 분석하여, 가장 합격 가능성이 높고 성장 잠재력이 큰 3~4개의 맞춤 추천 직무 및 기업 목록을 도출하세요.
+      const prompt = `당신은 대한민국 최고 수준의 이공계 커리어 컨설턴트입니다.
+다음 공학 전공 지원자의 구체적인 스펙(지원직무, 나이, 대학교, 전공학과, 학점, 어학/영어성적, 기술스택, 엔지니어링 툴, 그리고 사용자가 추가한 개별 프로젝트/실무 경험)을 종합 분석하여, 가장 합격 가능성이 높고 맞춤형인 3~4개의 추천 직무 및 기업 목록을 도출하세요.
 
-지원자 프로필:
-${JSON.stringify(profile, null, 2)}
+[지원자 입력 스펙]
+- 지원 희망 직무: ${profile.targetRole || '엔지니어링 R&D / 설계'}
+- 나이: ${profile.age || '미기재'}
+- 출신 학교: ${profile.university || '공과대학교'}
+- 학과 / 전공: ${profile.major || '공학계열'}
+- 학점: ${profile.gpa || '3.8 / 4.5'}
+- 영어 / 어학 성적: ${profile.englishScore || 'TOEIC 850'}
+- 보유 툴 및 기술: ${profile.engineeringTools?.join(', ') || '3D CAD, MATLAB, Python'}
+- 경험 및 프로젝트 내역 (${profile.projectExperience?.length || 0}건):
+${JSON.stringify(profile.projectExperience || [], null, 2)}
+
+[요구사항]
+1. 지원자가 입력한 '지원 희망 직무(${profile.targetRole || '기재 직무'})'와 전공(${profile.major}), 학점(${profile.gpa}), 어학성적(${profile.englishScore}), 그리고 구체적인 프로젝트 경험 성과를 직접적으로 연계하여 추천 사유(rationale)와 자소서 강조 포인트(strategicProjectHighlight)에 구체적으로 명시하세요.
+2. 각 직무별로 대기업, 글로벌/유니콘, 강소·중견기업 등 3개의 추천 목표 기업을 포함하세요.
+3. 스펙 적합도(matchScore, 85~98점 사이)와 보완해야 할 역량(requiredUpskilling)을 제시하세요.
 `;
 
       const geminiCall = ai.models.generateContent({
@@ -584,32 +598,80 @@ ${JSON.stringify(profile, null, 2)}
       let recommendations = await withGeminiTimeout(geminiCall, () => [], 4000);
 
       if (!recommendations || recommendations.length === 0) {
-        recommendations = [
-          {
-            roleTitle: '기계/기구 구조 선행해석 엔지니어',
-            matchScore: 95,
-            rationale: `${profile.major} 전공 지식과 ${profile.engineeringTools?.slice(0, 2).join(', ')} 툴 활용 능력, 캡스톤 FEA 해석 성과(18.4% 경량화)가 모빌리티 샤시 및 로보틱스 부품 개발 부서의 신입 R&D 인재상과 정확히 일치합니다.`,
-            recommendedCompanies: [
-              { name: '현대자동차 남양연구소', category: '대기업', focusTech: '샤시 메카트로닉스 선행개발', openingsCount: 3 },
-              { name: '두산로보틱스', category: '글로벌/유니콘', focusTech: '협동로봇 경량 기구 관절 설계', openingsCount: 2 },
-              { name: '대동모빌리티', category: '강소·중견기업', focusTech: '스마트 모빌리티 전동 플랫폼', openingsCount: 4 },
-            ],
-            strategicProjectHighlight: '조향 액추에이터 토폴로지 최적화를 통해 질량 18.4% 감량 및 피로 안전계수 1.6을 달성한 정량적 수치를 자기소개서 1번 문항에 전면 배치하십시오.',
-            requiredUpskilling: ['동역학(ADAMS/RecurDyn)', '진동 NVH 기본 이론'],
-          },
-          {
-            roleTitle: '로보틱스 하드웨어 및 구동 메커니즘 설계자',
-            matchScore: 91,
-            rationale: '다관절 로봇 매니퓰레이터 기구학 시뮬레이션 및 반복 정밀도 ±0.04mm 검증 경험은 스마트팩토리 자동화 로봇 제조사에서 가장 선호하는 핵심 실무 역량입니다.',
-            recommendedCompanies: [
-              { name: '한화에어로스페이스', category: '대기업', focusTech: '특수 로봇 및 추진 메커니즘', openingsCount: 2 },
-              { name: '레인보우로보틱스', category: '글로벌/유니콘', focusTech: '이족보행/협동로봇 관절 액추에이터', openingsCount: 3 },
-              { name: '뉴로메카', category: '강소·중견기업', focusTech: '자동화 로봇 기구 개발', openingsCount: 5 },
-            ],
-            strategicProjectHighlight: 'MATLAB 및 ROS2 기반 실시간 궤적 제어 알고리즘 개발을 통해 오차 한계를 검증한 제어 연동 역량을 강조하십시오.',
-            requiredUpskilling: ['EtherCAT 모터 드라이버 제어', '기어 감속기 선정 공식'],
-          },
-        ];
+        const major = profile.major || '기계공학';
+        const targetRole = profile.targetRole || '선행 연구개발(R&D) 및 기구설계';
+        const univ = profile.university || '공과대학';
+        const english = profile.englishScore || '어학 우수';
+        const primaryExp = profile.projectExperience?.[0];
+        const expDesc = primaryExp ? `'${primaryExp.title}' (${primaryExp.metricOutcome || primaryExp.role || '실무 성과'})` : '종합 캡스톤 설계 성과';
+
+        if (major.includes('전자') || major.includes('전기') || major.includes('반도체') || targetRole.includes('회로') || targetRole.includes('반도체')) {
+          recommendations = [
+            {
+              roleTitle: targetRole || '임베디드 제어 및 차세대 전력전자 시스템 엔지니어',
+              matchScore: 96,
+              rationale: `${univ} ${major} 전공 기반과 학점(${profile.gpa}), ${english} 어학 역량, 그리고 ${expDesc}에서 입증된 실무 경험이 전장/반도체 제어 R&D 부서의 핵심 인재상과 완벽히 일치합니다.`,
+              recommendedCompanies: [
+                { name: '삼성전자 DS', category: '대기업', focusTech: 'HBM 패키징 및 차세대 클린룸 수율 최적화', openingsCount: 5 },
+                { name: 'LG이노텍', category: '글로벌/유니콘', focusTech: '차량용 센서 모듈 및 전원 인버터 메커니즘', openingsCount: 4 },
+                { name: '솔루엠', category: '강소·중견기업', focusTech: '초고효율 전력모듈 및 파워보드 신뢰성 검증', openingsCount: 2 },
+              ],
+              strategicProjectHighlight: `${expDesc} 경험을 서류 1번 문항에 전면 배치하여 노이즈 제어 및 회로 신뢰성 검증 역량을 정량적으로 강조하십시오.`,
+              requiredUpskilling: ['신호 무결성(SI/PI) 시뮬레이션', '차량용 통신 규격(CAN-FD, LIN)'],
+            },
+            {
+              roleTitle: '반도체 공정/설비 및 수율 엔지니어링',
+              matchScore: 92,
+              rationale: `${major} 계열의 공학 물성 기초와 정량적 트러블슈팅 경험은 첨단 반도체 FAB 설비 가동률 최적화 및 공정 라인 관리에 즉각적인 시너지를 냅니다.`,
+              recommendedCompanies: [
+                { name: 'SK하이닉스', category: '대기업', focusTech: 'DRAM/NAND 수율 및 계측 인프라', openingsCount: 4 },
+                { name: '원익IPS', category: '강소·중견기업', focusTech: '플라즈마 증착 장비 메커니즘 및 챔버 튜닝', openingsCount: 3 },
+                { name: '동진쎄미켐', category: '강소·중견기업', focusTech: '반도체 감광액(PR) 및 식각 소재 평가', openingsCount: 2 },
+              ],
+              strategicProjectHighlight: '실험 계측 오차 축소 및 데이터 피팅 역량을 자기소개서의 문제해결력 사례로 집중 부각하십시오.',
+              requiredUpskilling: ['통계적 공정관리(SPC)', '반도체 8대 공정 심화 실무'],
+            },
+          ];
+        } else {
+          recommendations = [
+            {
+              roleTitle: targetRole || '기계/기구 구조 선행해석 및 R&D 엔지니어',
+              matchScore: 95,
+              rationale: `${univ} ${major} 전공과 학점(${profile.gpa}), ${english} 역량, 그리고 ${expDesc}에서 검증된 정량 성과가 차세대 모빌리티 및 기구 구조 설계 부서의 신입 인재상에 완벽히 부합합니다.`,
+              recommendedCompanies: [
+                { name: '현대자동차 남양연구소', category: '대기업', focusTech: '샤시 메카트로닉스 및 전동화 플랫폼', openingsCount: 3 },
+                { name: '두산로보틱스', category: '글로벌/유니콘', focusTech: '협동로봇 경량 기구 관절 메커니즘', openingsCount: 2 },
+                { name: '대동모빌리티', category: '강소·중견기업', focusTech: '스마트 모빌리티 전동 구동계 플랫폼', openingsCount: 4 },
+              ],
+              strategicProjectHighlight: `${expDesc}에서의 정량 수치를 지원서 첫 문항에 요약 배치하여 구조 안전성 및 최적화 역량을 선명하게 드러내십시오.`,
+              requiredUpskilling: ['다물체 동역학(RecurDyn/ADAMS)', '구조 진동 NVH 심화 해석'],
+            },
+            {
+              roleTitle: '로보틱스 하드웨어 및 구동 메커니즘 설계자',
+              matchScore: 91,
+              rationale: '정밀 CAD 모델링과 구조 검증 경험, 그리고 실시간 제어 알고리즘 연동 기초는 자동화 로봇 및 방산 메카트로닉스 제조사에서 가장 선호하는 실무형 역량입니다.',
+              recommendedCompanies: [
+                { name: '한화에어로스페이스', category: '대기업', focusTech: '특수 로봇 및 고정밀 구동 메커니즘', openingsCount: 2 },
+                { name: '레인보우로보틱스', category: '글로벌/유니콘', focusTech: '이족보행/협동로봇 관절 액추에이터', openingsCount: 3 },
+                { name: '뉴로메카', category: '강소·중견기업', focusTech: '자동화 로봇 하드웨어 아키텍처', openingsCount: 5 },
+              ],
+              strategicProjectHighlight: '오차 한계 검증과 부품 간 간섭 해결 경험을 포트폴리오 요약과 함께 명확히 설명하십시오.',
+              requiredUpskilling: ['EtherCAT 모터 드라이버 제어', '정밀 감속기 토크 용량 계산'],
+            },
+            {
+              roleTitle: '공정기술 및 생산 설비 최적화 엔지니어',
+              matchScore: 89,
+              rationale: '공학적 문제 분석력과 프로젝트 일정 조율 경험을 토대로 제조 공정의 병목 구간 해소 및 설비 셋업 현장 엔지니어링에 강한 적합도를 보입니다.',
+              recommendedCompanies: [
+                { name: 'LG에너지솔루션', category: '대기업', focusTech: '2차전지 전극 및 조립 자동화 공정', openingsCount: 4 },
+                { name: '포스코퓨처엠', category: '대기업', focusTech: '양극재 연속 소성 설비 인프라', openingsCount: 3 },
+                { name: '삼기이브이', category: '강소·중견기업', focusTech: '배터리 엔드플레이트 고속 프레스 공정', openingsCount: 2 },
+              ],
+              strategicProjectHighlight: '공정 변수 제어 및 불량률 저감 노력을 구체적인 수치와 함께 기술하십시오.',
+              requiredUpskilling: ['설비 예지보전(PdM)', '공정 흐름도(PFD) 및 P&ID 해석'],
+            },
+          ];
+        }
       }
 
       return res.json({ success: true, data: recommendations });

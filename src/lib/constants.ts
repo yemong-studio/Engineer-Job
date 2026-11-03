@@ -46,9 +46,13 @@ export const INITIAL_USER_PROFILE: UserProfile = {
   id: 'usr_eng_001',
   name: '김공학',
   email: 'engineer.kim@univ.ac.kr',
+  age: '26세',
+  university: '한국공과대학교',
   major: '기계공학',
   degree: '학사 (졸업예정)',
   gpa: '3.85 / 4.5',
+  englishScore: 'TOEIC 850 / OPIc IH',
+  targetRole: '샤시/의장 메카트로닉스 선행 구조설계 연구원',
   techSkills: ['열유체 해석', '진동 해석', '구조해석 (FEA)', '임베디드 제어', 'Python', 'C++'],
   engineeringTools: ['CATIA V5', 'ANSYS Workbench', 'SolidWorks', 'MATLAB & Simulink', 'LabVIEW'],
   projectExperience: [
